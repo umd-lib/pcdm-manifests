@@ -1,0 +1,4 @@
+server_cert: fcrepolocal.pem
+fcrepo_base_uri: https://fcrepolocal/fcrepo/rest
+username: tester
+password: tester
