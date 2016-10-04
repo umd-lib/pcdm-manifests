@@ -1,4 +1,5 @@
 server_cert: fcrepolocal.pem
-fcrepo_base_uri: https://fcrepolocal/fcrepo/rest
 username: tester
 password: tester
+fcrepo_base_uri: https://fcrepolocal/fcrepo/rest/pcdm/
+iiif_image_uri: https://iiiflocal/images/

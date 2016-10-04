@@ -3,8 +3,13 @@
 require 'yaml'
 require 'faraday'
 require 'faraday_middleware'
+require 'link_header'
 
 config = YAML.load_file('config.yml')
+
+FCREPO_BASE_URI = config['fcrepo_base_uri']
+IIIF_IMAGE_URI = config['iiif_image_uri']
+
 issue_uri = ARGV[0]
 
 @fcrepo_conn = Faraday.new(:ssl => { ca_file: config['server_cert'] }) do |faraday|
@@ -14,8 +19,51 @@ issue_uri = ARGV[0]
   faraday.headers['Accept'] = 'application/ld+json'
 end
 
+@iiif_conn = Faraday.new(:ssl => { verify: false }) do |faraday|
+  faraday.response :json, :content_type => /\bjson$/
+  faraday.adapter  Faraday.default_adapter
+end
+
 def get(uri)
   @fcrepo_conn.get(uri).body[0]
+end
+
+def get_described_by_link_header(uri)
+  links = @fcrepo_conn.head(uri).headers["link"]
+  links_array = LinkHeader.parse(links).to_a
+  links_array.each do |link_item|
+    link_item[1].each do |key_val_pair|
+      if (key_val_pair[0] == "rel" && key_val_pair[1] == "describedby")
+        return link_item[0]
+      end
+    end
+  end
+  nil
+end
+
+def get_metadata_value(metadata, key)
+  metadata[key][0]["@value"]
+end
+
+def get_mime_type(metadata)
+  mime_type_uri = "http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#hasMimeType"
+  get_metadata_value(metadata, mime_type_uri)
+end
+
+def get_path_from_uri(uri)
+  uri_unfrozen = uri.dup
+  uri_unfrozen.slice!(FCREPO_BASE_URI)
+  return uri_unfrozen
+end
+
+def get_image_dimensions(image_uri)
+  dimensions = {}
+  iiif_image_uri = IIIF_IMAGE_URI + get_path_from_uri(image_uri)
+  info_uri = iiif_image_uri + "/info.json"
+  info = @iiif_conn.get(info_uri).body
+  dimensions["height"] = info["height"]
+  dimensions["width"] = info["width"]
+  return dimensions
 end
 
 issue = get(issue_uri)
@@ -31,8 +79,13 @@ pages.each_with_index do |page_link, index|
   page = get(page_link['@id'])
   files = page[hasFile]
   files.each do |file_link|
-    puts "  #{file_link['@id']}"
-    #TODO: follow the Link rel="describedby" header to the metadata resource
+    metadata_link = get_described_by_link_header(file_link['@id'])
+    file_meta = get(metadata_link)
+    mime_type = get_mime_type(file_meta)
+    if (mime_type == "image/tiff")
+      puts "  #{file_link['@id']}"
+      dimensions = get_image_dimensions(file_link['@id'])
+    end
   end
 end
 
