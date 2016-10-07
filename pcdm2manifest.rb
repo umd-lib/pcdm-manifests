@@ -66,29 +66,7 @@ def get_image_dimensions(image_uri)
   return dimensions
 end
 
-issue = get(issue_uri)
-
-hasMember = 'http://pcdm.org/models#hasMember'
-hasFile = 'http://pcdm.org/models#hasFile'
-rdf_type = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
-
-pages = issue[hasMember]
-pages.each_with_index do |page_link, index|
-  puts "Page #{index + 1}"
-  puts page_link['@id']
-  page = get(page_link['@id'])
-  files = page[hasFile]
-  files.each do |file_link|
-    metadata_link = get_described_by_link_header(file_link['@id'])
-    file_meta = get(metadata_link)
-    mime_type = get_mime_type(file_meta)
-    if (mime_type == "image/tiff")
-      puts "  #{file_link['@id']}"
-      dimensions = get_image_dimensions(file_link['@id'])
-    end
-  end
-end
-
+# Template for generating manifests
 manifest = {
   # Metadata about this manifest file
   "@context" => "http://iiif.io/api/presentation/2/context.json",
@@ -225,3 +203,28 @@ manifest = {
     # Any additional sequences can be referenced here...
   ]
 }
+
+issue = get(issue_uri)
+
+hasMember = 'http://pcdm.org/models#hasMember'
+hasFile = 'http://pcdm.org/models#hasFile'
+rdf_type = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+
+pages = issue[hasMember]
+pages.each_with_index do |page_link, index|
+  puts "Page #{index + 1}"
+  puts page_link['@id']
+  page = get(page_link['@id'])
+  files = page[hasFile]
+  files.each do |file_link|
+    metadata_link = get_described_by_link_header(file_link['@id'])
+    file_meta = get(metadata_link)
+    mime_type = get_mime_type(file_meta)
+    if (mime_type == "image/tiff")
+      puts "  #{file_link['@id']}"
+      dimensions = get_image_dimensions(file_link['@id'])
+    end
+  end
+end
+
+
