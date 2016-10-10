@@ -1,3 +1,15 @@
+GIT
+  remote: git://github.com/sinatra/sinatra.git
+  revision: af6dad2a6c31e31617712b15f455b2a3d3eb1c06
+  specs:
+    rack-protection (2.0.0.beta2)
+      rack
+    sinatra (2.0.0.beta2)
+      mustermann (= 1.0.0.beta2)
+      rack (~> 2.0)
+      rack-protection (= 2.0.0.beta2)
+      tilt (~> 2.0)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -7,6 +19,9 @@ GEM
       faraday (>= 0.7.4, < 0.10)
     link_header (0.0.8)
     multipart-post (2.0.0)
+    mustermann (1.0.0.beta2)
+    rack (2.0.1)
+    tilt (2.0.5)
 
 PLATFORMS
   ruby
@@ -15,6 +30,7 @@ DEPENDENCIES
   faraday
   faraday_middleware
   link_header
+  sinatra!
 
 BUNDLED WITH
    1.13.2

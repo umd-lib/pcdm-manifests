@@ -1,17 +1,19 @@
 #!/usr/bin/env ruby
 
+require "bundler/setup"
 require 'yaml'
 require 'faraday'
 require 'faraday_middleware'
 require 'link_header'
 require 'json'
 require 'erb'
+require 'sinatra'
 
-config = YAML.load_file('config.yml')
+$config = YAML.load_file('config.yml')
 
-FCREPO_BASE_URI = config['fcrepo_base_uri']
-IIIF_IMAGE_URI = config['iiif_image_uri']
-IIIF_MANIFEST_URI = config['iiif_manifest_uri']
+FCREPO_BASE_URI = $config['fcrepo_base_uri']
+IIIF_IMAGE_URI = $config['iiif_image_uri']
+IIIF_MANIFEST_URI = $config['iiif_manifest_uri']
 
 
 #RDF METADATA KEYS
@@ -28,24 +30,24 @@ MIME_TYPE_URI = 'http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#hasMimeTy
 
 issue_uri = ARGV[0]
 
-@fcrepo_conn = Faraday.new(:ssl => { ca_file: config['server_cert'] }) do |faraday|
+$fcrepo_conn = Faraday.new(:ssl => { ca_file: $config['server_cert'] }) do |faraday|
   faraday.response :json, :content_type => /\bjson$/
   faraday.adapter  Faraday.default_adapter
-  faraday.basic_auth(config['username'], config['password'])
+  faraday.basic_auth($config['username'], $config['password'])
   faraday.headers['Accept'] = 'application/ld+json'
 end
 
-@iiif_conn = Faraday.new(:ssl => { verify: false }) do |faraday|
+$iiif_conn = Faraday.new(:ssl => { verify: false }) do |faraday|
   faraday.response :json, :content_type => /\bjson$/
   faraday.adapter  Faraday.default_adapter
 end
 
-def get(uri)
-  @fcrepo_conn.get(uri).body[0]
+def get_body(uri)
+  $fcrepo_conn.get(uri).body[0]
 end
 
 def get_described_by_link_header(uri)
-  links = @fcrepo_conn.head(uri).headers['link']
+  links = $fcrepo_conn.head(uri).headers['link']
   links_array = LinkHeader.parse(links).to_a
   links_array.each do |link_item|
     link_item[1].each do |key_val_pair|
@@ -75,7 +77,7 @@ def get_image_dimensions(image_uri)
   dimensions = {}
   iiif_image_uri = IIIF_IMAGE_URI + get_path_from_uri(image_uri)
   info_uri = iiif_image_uri + '/info.json'
-  info = @iiif_conn.get(info_uri).body
+  info = $iiif_conn.get(info_uri).body
   dimensions['height'] = info['height']
   dimensions['width'] = info['width']
   return dimensions
@@ -100,7 +102,7 @@ end
 
 
 # Template for generating manifests
-@manifest_template = {
+$manifest_template = {
   # Metadata about this manifest file
   '@context' => 'http://iiif.io/api/presentation/2/context.json',
   '@id' => 'http://example.org/iiif/book1/manifest', # Issue Manifest ID
@@ -238,16 +240,16 @@ end
 }
 
 # Remove any properties that are currently used
-@manifest_template.delete('related')
-@manifest_template.delete('service')
-@manifest_template.delete('seeAlso')
-@manifest_template.delete('rendering')
-@manifest_template['sequences'][0]['canvases'][0].delete('otherContent')
-@manifest_template['logo'].delete('service')
+$manifest_template.delete('related')
+$manifest_template.delete('service')
+$manifest_template.delete('seeAlso')
+$manifest_template.delete('rendering')
+$manifest_template['sequences'][0]['canvases'][0].delete('otherContent')
+$manifest_template['logo'].delete('service')
 
 
 def generate_issue_manifest(issue_uri)
-  issue = get(issue_uri)
+  issue = get_body(issue_uri)
   issue_id_encoded = uri2encoded_id(issue_uri)
   first_page_id =  get_path_from_uri(issue[IANA_FIRST][0]['@id'])
   first_page_id_encoded =  escape_slashes(first_page_id)
@@ -257,7 +259,7 @@ def generate_issue_manifest(issue_uri)
   # Reinitiate any child arrays and hashes that needs to be modified
   #   array objects should be reinitiated with Arrays.new
   #   hash objects should be cloned before updates
-  manifest = @manifest_template.clone
+  manifest = $manifest_template.clone
 
   manifest['@id'] = IIIF_MANIFEST_URI + issue_id_encoded + '/manifest'
   manifest['label'] = issue[DC_TITLE]
@@ -295,11 +297,11 @@ def generate_issue_manifest(issue_uri)
   pages.each_with_index do |page_link, index|
     puts "Page #{index + 1}"
     puts page_link['@id']
-    page = get(page_link['@id'])
+    page = get_body(page_link['@id'])
     files = page[HAS_FILE]
     files.each do |file_link|
       metadata_link = get_described_by_link_header(file_link['@id'])
-      file_meta = get(metadata_link)
+      file_meta = get_body(metadata_link)
       mime_type = get_mime_type(file_meta)
       if (mime_type == 'image/tiff')
         puts "  #{file_link["@id"]}"
@@ -347,6 +349,16 @@ def generate_issue_manifest(issue_uri)
   return manifest
 end
 
+# Sinatra Configuration
+configure do
+  set :protection, :except => :path_traversal
+end
+
+get '/manifests/:id' do
+  content_type :json
+  generate_issue_manifest(FCREPO_BASE_URI + params[:id]).to_json
+end
+
 # MAIN Execution
-issue_manifest = generate_issue_manifest(issue_uri)
-puts JSON.pretty_generate(issue_manifest)
+#issue_manifest = generate_issue_manifest(issue_uri)
+#puts JSON.pretty_generate(issue_manifest)
