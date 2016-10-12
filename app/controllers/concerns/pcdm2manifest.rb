@@ -29,6 +29,8 @@ module PCDM2Manifest
   HAS_MEMBER = 'http://pcdm.org/models#hasMember'
   HAS_FILE = 'http://pcdm.org/models#hasFile'
   MIME_TYPE_URI = 'http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#hasMimeType'
+  FILE_OF = 'http://pcdm.org/models#fileOf'
+  MEMBER_OF = 'http://pcdm.org/models#memberOf'
 
   @@fcrepo_conn = Faraday.new(:ssl => { ca_file: @@config['server_cert'] }) do |faraday|
     faraday.response :json, :content_type => /\bjson$/
@@ -102,6 +104,49 @@ module PCDM2Manifest
       canvas_dimensions['width'] = canvas_dimensions['width'] * 2
     end
     return canvas_dimensions
+  end
+
+  def self.get_issue_id_of_page(page_uri)
+    page = get_body(page_uri)
+    if (page.key?(MEMBER_OF))
+      page[MEMBER_OF].each do |member_of|
+        membership_uri = member_of['@id']
+        @@logger.debug("ISSUE/REEL ID: " + membership_uri)
+        membership_meta = get_body(membership_uri)
+        if (membership_meta.key?(BIBO_ISSUE))
+          return get_path_from_uri(membership_uri)
+        end
+      end
+    end
+  end
+
+  def self.get_issue_id_of_file(file_meta_uri)
+    file_meta = get_body(file_meta_uri)
+    if (file_meta.key?(FILE_OF))
+      page_uri = file_meta[FILE_OF][0]['@id']
+      @@logger.debug("PageID: " + page_uri)
+      return get_issue_id_of_page(page_uri)
+    end
+  end
+
+  def self.get_info(resource_id)
+    info = Hash.new 
+    resource_url = get_uri_from_id(resource_id)
+    desc_header_link = get_described_by_link_header(resource_url)
+    if (desc_header_link != nil)
+      info[:type] = "FILE"
+      info[:issue_id] = get_issue_id_of_file(desc_header_link)
+    else
+      object = get_body(resource_url)
+      if (object.key?(HAS_FILE))
+        info[:type] = "PAGE"
+        info[:issue_id] = get_issue_id_of_page(resource_url)
+      else
+        info[:type] = "ISSUE"
+        info[:issue_id] = resource_id
+      end 
+    end
+    return info
   end
 
 
