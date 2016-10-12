@@ -26,11 +26,13 @@ module PCDM2Manifest
   BIBO_VOLUME = 'http://purl.org/ontology/bibo/volume'
   IANA_FIRST = 'http://www.iana.org/assignments/relation/first'
   IANA_LAST = 'http://www.iana.org/assignments/relation/last'
+  IANA_NEXT = 'http://www.iana.org/assignments/relation/next'
   HAS_MEMBER = 'http://pcdm.org/models#hasMember'
   HAS_FILE = 'http://pcdm.org/models#hasFile'
   MIME_TYPE_URI = 'http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#hasMimeType'
   FILE_OF = 'http://pcdm.org/models#fileOf'
   MEMBER_OF = 'http://pcdm.org/models#memberOf'
+  PROXY_FOR = 'http://www.openarchives.org/ore/terms/proxyFor'
 
   @@fcrepo_conn = Faraday.new(:ssl => { ca_file: @@config['server_cert'] }) do |faraday|
     faraday.response :json, :content_type => /\bjson$/
@@ -129,6 +131,18 @@ module PCDM2Manifest
     end
   end
 
+  def self.get_proxy_data(proxy_uri)
+    proxy = get_body(proxy_uri)
+    proxy_data = Hash.new
+    proxy_data[:page_uri] = proxy[PROXY_FOR][0]['@id']
+    @@logger.debug JSON.pretty_generate(proxy)
+    if (proxy.key?(IANA_NEXT))
+      proxy_data[:next_page_proxy] = proxy[IANA_NEXT][0]['@id']
+    end
+    return proxy_data
+  end
+
+  # Returns a hash map containing the resource type and corresponding issue id
   def self.get_info(resource_id)
     info = Hash.new 
     resource_url = get_uri_from_id(resource_id)
@@ -300,7 +314,8 @@ module PCDM2Manifest
   def self.generate_issue_manifest(issue_uri)
     issue = get_body(issue_uri)
     issue_id_encoded = uri2encoded_id(issue_uri)
-    first_page_id =  get_path_from_uri(issue[IANA_FIRST][0]['@id'])
+    first_page_proxy = get_proxy_data(issue[IANA_FIRST][0]['@id'])
+    first_page_id =  get_path_from_uri(first_page_proxy[:page_uri])
     first_page_id_encoded =  escape_slashes(first_page_id)
 
     # Populate Manifest properties
@@ -341,11 +356,12 @@ module PCDM2Manifest
     service_template = resource_template['service'].clone
 
     # Populate the canvases from the pages
-    pages = issue[HAS_MEMBER]
-    pages.each_with_index do |page_link, index|
-      @@logger.debug "Page #{index + 1}"
-      @@logger.debug page_link['@id']
-      page = get_body(page_link['@id'])
+    page_proxy = first_page_proxy
+    while page_proxy != nil do
+      page_uri = page_proxy[:page_uri]
+      #@@logger.debug "Page #{index + 1}"
+      @@logger.debug page_uri
+      page = get_body(page_uri)
       files = page[HAS_FILE]
       files.each do |file_link|
         metadata_link = get_described_by_link_header(file_link['@id'])
@@ -356,7 +372,7 @@ module PCDM2Manifest
           dimensions = get_image_dimensions(file_link['@id'])
           canvas_dimensions = get_canvas_dimension(dimensions)
 
-          page_id_encoded = escape_slashes(get_path_from_uri(page_link['@id']))
+          page_id_encoded = escape_slashes(get_path_from_uri(page_uri))
           file_id = get_path_from_uri(file_link['@id'])
           file_id_encoded = escape_slashes(file_id)
 
@@ -391,6 +407,11 @@ module PCDM2Manifest
           # Add the page canvas to issue manifest's canvases array
           canvases.push(page_canvas)
         end
+      end
+      if page_proxy.key?(:next_page_proxy)
+        page_proxy = get_proxy_data(page_proxy[:next_page_proxy])
+      else
+        page_proxy = nil
       end
     end
     sequence['canvases'] = canvases
