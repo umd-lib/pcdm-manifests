@@ -113,7 +113,6 @@ module PCDM2Manifest
     if (page.key?(MEMBER_OF))
       page[MEMBER_OF].each do |member_of|
         membership_uri = member_of['@id']
-        @@logger.debug("ISSUE/REEL ID: " + membership_uri)
         membership_meta = get_body(membership_uri)
         if (membership_meta.key?(BIBO_ISSUE))
           return get_path_from_uri(membership_uri)
@@ -126,7 +125,6 @@ module PCDM2Manifest
     file_meta = get_body(file_meta_uri)
     if (file_meta.key?(FILE_OF))
       page_uri = file_meta[FILE_OF][0]['@id']
-      @@logger.debug("PageID: " + page_uri)
       return get_issue_id_of_page(page_uri)
     end
   end
@@ -135,7 +133,6 @@ module PCDM2Manifest
     proxy = get_body(proxy_uri)
     proxy_data = Hash.new
     proxy_data[:page_uri] = proxy[PROXY_FOR][0]['@id']
-    @@logger.debug JSON.pretty_generate(proxy)
     if (proxy.key?(IANA_NEXT))
       proxy_data[:next_page_proxy] = proxy[IANA_NEXT][0]['@id']
     end
@@ -312,6 +309,7 @@ module PCDM2Manifest
 
 
   def self.generate_issue_manifest(issue_uri)
+    @@logger.debug "Issue: #{issue_uri}"
     issue = get_body(issue_uri)
     issue_id_encoded = uri2encoded_id(issue_uri)
     first_page_proxy = get_proxy_data(issue[IANA_FIRST][0]['@id'])
@@ -357,10 +355,10 @@ module PCDM2Manifest
 
     # Populate the canvases from the pages
     page_proxy = first_page_proxy
+    page_count = 1
     while page_proxy != nil do
       page_uri = page_proxy[:page_uri]
-      #@@logger.debug "Page #{index + 1}"
-      @@logger.debug page_uri
+      @@logger.debug "  Page #{page_count}: #{page_uri}"
       page = get_body(page_uri)
       files = page[HAS_FILE]
       files.each do |file_link|
@@ -368,7 +366,7 @@ module PCDM2Manifest
         file_meta = get_body(metadata_link)
         mime_type = get_mime_type(file_meta)
         if (mime_type == 'image/tiff')
-          @@logger.debug "  #{file_link["@id"]}"
+          @@logger.debug "    File: #{file_link["@id"]}"
           dimensions = get_image_dimensions(file_link['@id'])
           canvas_dimensions = get_canvas_dimension(dimensions)
 
@@ -410,6 +408,7 @@ module PCDM2Manifest
       end
       if page_proxy.key?(:next_page_proxy)
         page_proxy = get_proxy_data(page_proxy[:next_page_proxy])
+        page_count += 1
       else
         page_proxy = nil
       end
