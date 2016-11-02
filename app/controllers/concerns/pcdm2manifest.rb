@@ -19,6 +19,9 @@ module PCDM2Manifest
   IIIF_MANIFEST_URI = @@config['iiif_manifest_uri']
 
   #RDF METADATA KEYS
+  RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+  PCDM_OBJECT = 'http://pcdm.org/models#Object'
+  PCDM_FILE = 'http://pcdm.org/models#File'
   DC_TITLE = 'http://purl.org/dc/elements/1.1/title'
   DC_DATE = 'http://purl.org/dc/elements/1.1/date'
   BIBO_EDITION = 'http://purl.org/ontology/bibo/edition'
@@ -46,12 +49,47 @@ module PCDM2Manifest
     faraday.adapter  Faraday.default_adapter
   end
 
+  def self.get(uri, accept_header=true)
+    if(accept_header == false)
+      @@fcrepo_conn.headers.delete('Accept')
+    end
+    response = @@fcrepo_conn.get(uri)
+    @@fcrepo_conn.headers['Accept'] = 'application/ld+json'
+    if (response.status == 200)
+      return response
+    else
+      raise "Got #{response.status} for #{uri}"
+    end
+  end
+
+  def self.head(uri, accept_header=true)
+    if(accept_header == false)
+      @@fcrepo_conn.headers.delete('Accept')
+    end
+    response = @@fcrepo_conn.head(uri)
+    @@fcrepo_conn.headers['Accept'] = 'application/ld+json'
+    if (response.status == 200)
+      return response
+    else
+      raise "Got #{response.status} for #{uri}"
+    end
+  end
+
+  def self.iiif_get(uri)
+    response = @@iiif_conn.get(uri)
+    if (response.status == 200)
+      return response
+    else
+      raise "Got #{response.status} for #{uri}"
+    end
+  end
+
   def self.get_body(uri)
-    @@fcrepo_conn.get(uri).body[0]
+    get(uri).body[0]
   end
 
   def self.get_described_by_link_header(uri)
-    links = @@fcrepo_conn.head(uri).headers['link']
+    links = head(uri, false).headers['link']
     links_array = LinkHeader.parse(links).to_a
     links_array.each do |link_item|
       link_item[1].each do |key_val_pair|
@@ -85,7 +123,7 @@ module PCDM2Manifest
     dimensions = {}
     iiif_image_uri = IIIF_IMAGE_URI + get_path_from_uri(image_uri)
     info_uri = iiif_image_uri + '/info.json'
-    info = @@iiif_conn.get(info_uri).body
+    info = iiif_get(info_uri).body
     dimensions['height'] = info['height']
     dimensions['width'] = info['width']
     return dimensions
@@ -139,23 +177,37 @@ module PCDM2Manifest
     return proxy_data
   end
 
+  def self.is_pcdm_file(file_meta)
+    file_meta['@type'].include?(PCDM_FILE)
+  end
+
+  def self.is_pcdm_object(object_meta)
+    object_meta['@type'].include?(PCDM_OBJECT)
+  end
+
   # Returns a hash map containing the resource type and corresponding issue id
   def self.get_info(resource_id)
-    info = Hash.new 
+    info = Hash.new
+    info[:type] = "NON_PCDM"
     resource_url = get_uri_from_id(resource_id)
     desc_header_link = get_described_by_link_header(resource_url)
     if (desc_header_link != nil)
-      info[:type] = "FILE"
-      info[:issue_id] = get_issue_id_of_file(desc_header_link)
+      file_meta = get_body(desc_header_link)
+      if is_pcdm_file(file_meta)
+        info[:type] = "FILE"
+        info[:issue_id] = get_issue_id_of_file(desc_header_link)
+      end
     else
       object = get_body(resource_url)
-      if (object.key?(HAS_FILE))
-        info[:type] = "PAGE"
-        info[:issue_id] = get_issue_id_of_page(resource_url)
-      else
-        info[:type] = "ISSUE"
-        info[:issue_id] = resource_id
-      end 
+      if is_pcdm_object(object)
+        if (object.key?(HAS_FILE))
+          info[:type] = "PAGE"
+          info[:issue_id] = get_issue_id_of_page(resource_url)
+        else
+          info[:type] = "ISSUE"
+          info[:issue_id] = resource_id
+        end
+      end
     end
     return info
   end
