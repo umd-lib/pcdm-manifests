@@ -10,6 +10,12 @@ Requires Ruby v2.2.4
 git clone git@github.com:umd-lib/pcdm-manifests.git
 cd pcdm-manifests
 
+# Copy the config file
+cp config/pcdm2manifest.yml.dist config/pcdm2manifest.yml
+
+# Set the appropriate configuration
+vim config/pcdm2manifest.yml
+
 gem install bundler
 bundle install
 rails server
