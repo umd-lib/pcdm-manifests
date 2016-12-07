@@ -22,7 +22,7 @@ module PCDM2Manifest
   RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
   PCDM_OBJECT = 'http://pcdm.org/models#Object'
   PCDM_FILE = 'http://pcdm.org/models#File'
-  DC_TITLE = 'http://purl.org/dc/elements/1.1/title'
+  DCTERMS_TITLE = 'http://purl.org/dc/terms/title'
   DC_DATE = 'http://purl.org/dc/elements/1.1/date'
   BIBO_EDITION = 'http://purl.org/ontology/bibo/edition'
   BIBO_ISSUE = 'http://purl.org/ontology/bibo/issue'
@@ -375,7 +375,7 @@ module PCDM2Manifest
     #   hash objects should be cloned before updates
     manifest = @@manifest_template.clone
     manifest['@id'] = IIIF_MANIFEST_URI + issue_id_encoded + '/manifest'
-    manifest['label'] = issue[DC_TITLE]
+    manifest['label'] = issue[DCTERMS_TITLE]
     manifest['metadata'] = Array.new
     manifest['metadata'].push({'label': 'Date', 'value': issue[DC_DATE]})
     manifest['metadata'].push({'label': 'Edition', 'value': issue[BIBO_EDITION]})
@@ -429,7 +429,7 @@ module PCDM2Manifest
           # Populate Canvas properties
           page_canvas = canvas_template.clone
           page_canvas['@id'] = IIIF_MANIFEST_URI + issue_id_encoded + '/canvas/' + page_id_encoded
-          page_canvas['label'] = page[DC_TITLE][0]['@value']
+          page_canvas['label'] = page[DCTERMS_TITLE][0]['@value']
           page_canvas[:height] = canvas_dimensions['height']
           page_canvas[:width] = canvas_dimensions['width']
 
