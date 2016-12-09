@@ -1,6 +1,11 @@
 require 'pcdm2manifest'
 
 class ManifestsController < ApplicationController
+  # Render the index page
+  def index
+    render :file => 'public/index.html'
+  end
+
   # GET /manifests/:id
   def show
     id = params[:id]
