@@ -17,6 +17,7 @@ module PCDM2Manifest
   FCREPO_BASE_URI = @@config['fcrepo_base_uri']
   IIIF_IMAGE_URI = @@config['iiif_image_uri']
   IIIF_MANIFEST_URI = @@config['iiif_manifest_uri']
+  PREFIX = @@config['id_prefix']
 
   #RDF METADATA KEYS
   RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
@@ -374,7 +375,7 @@ module PCDM2Manifest
     #   array objects should be reinitiated with Arrays.new
     #   hash objects should be cloned before updates
     manifest = @@manifest_template.clone
-    manifest['@id'] = IIIF_MANIFEST_URI + issue_id_encoded + '/manifest'
+    manifest['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/manifest'
     manifest['label'] = issue[DCTERMS_TITLE]
     manifest['metadata'] = Array.new
     manifest['metadata'].push({'label': 'Date', 'value': issue[DC_DATE]})
@@ -389,7 +390,7 @@ module PCDM2Manifest
     # Populate Sequence properties
     sequence = manifest['sequences'][0].clone
     sequence['@id'] = IIIF_MANIFEST_URI + issue_id_encoded + '/sequence/normal'
-    sequence['startCanvas'] = IIIF_MANIFEST_URI + issue_id_encoded + '/canvas/' + first_page_id_encoded
+    sequence['startCanvas'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/canvas/' + first_page_id_encoded
     manifest['sequences'][0] = sequence
 
     # Get the canvas template and reinitiate canvases array
@@ -428,14 +429,14 @@ module PCDM2Manifest
 
           # Populate Canvas properties
           page_canvas = canvas_template.clone
-          page_canvas['@id'] = IIIF_MANIFEST_URI + issue_id_encoded + '/canvas/' + page_id_encoded
+          page_canvas['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/canvas/' + page_id_encoded
           page_canvas['label'] = page[DCTERMS_TITLE][0]['@value']
           page_canvas[:height] = canvas_dimensions['height']
           page_canvas[:width] = canvas_dimensions['width']
 
           # Populate Image properties
           page_image = image_template.clone
-          page_image['@id'] = IIIF_MANIFEST_URI + issue_id_encoded + '/annotation/' + file_id_encoded
+          page_image['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/annotation/' + file_id_encoded
           page_image['on'] = page_canvas['@id']
 
           # Populate Resource properties
