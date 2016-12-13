@@ -389,8 +389,8 @@ module PCDM2Manifest
 
     # Populate Sequence properties
     sequence = manifest['sequences'][0].clone
-    sequence['@id'] = IIIF_MANIFEST_URI + issue_id_encoded + '/sequence/normal'
-    sequence['startCanvas'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/canvas/' + first_page_id_encoded
+    sequence['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/sequence/normal'
+    sequence['startCanvas'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/canvas/' + PREFIX + first_page_id_encoded
     manifest['sequences'][0] = sequence
 
     # Get the canvas template and reinitiate canvases array
@@ -429,14 +429,14 @@ module PCDM2Manifest
 
           # Populate Canvas properties
           page_canvas = canvas_template.clone
-          page_canvas['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/canvas/' + page_id_encoded
+          page_canvas['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/canvas/' + PREFIX + page_id_encoded
           page_canvas['label'] = page[DCTERMS_TITLE][0]['@value']
           page_canvas[:height] = canvas_dimensions['height']
           page_canvas[:width] = canvas_dimensions['width']
 
           # Populate Image properties
           page_image = image_template.clone
-          page_image['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/annotation/' + file_id_encoded
+          page_image['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/annotation/' + PREFIX + file_id_encoded
           page_image['on'] = page_canvas['@id']
 
           # Populate Resource properties
