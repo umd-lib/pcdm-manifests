@@ -1,6 +1,9 @@
 require 'pcdm2manifest'
 
 class ManifestsController < ApplicationController
+  @@config = YAML.load_file("config/pcdm2manifest.yml")
+  PREFIX = @@config['id_prefix']
+
   # Render the index page
   def index
     render :file => 'public/index.html'
@@ -8,7 +11,13 @@ class ManifestsController < ApplicationController
 
   # GET /manifests/:id
   def show
-    id = params[:id]
+    prefixed_id = params[:id]
+    id =  "";
+    if (prefixed_id.starts_with?(PREFIX))
+      id = prefixed_id[PREFIX.length..prefixed_id.length]
+    else
+      raise "Missing prefix: " + PREFIX
+    end
     begin
       resource_info = PCDM2Manifest.get_info(id)
     rescue NoMethodError => e
@@ -20,7 +29,7 @@ class ManifestsController < ApplicationController
       raise ActionController::RoutingError.new('Not an PCDM Object/File: ' + id) 
     else
       encoded_id = PCDM2Manifest.escape_slashes(resource_info[:issue_id])
-      redirect_to '/manifests/' + encoded_id, status: :see_other
+      redirect_to '/manifests/' + PREFIX + encoded_id, status: :see_other
     end
   end
 
