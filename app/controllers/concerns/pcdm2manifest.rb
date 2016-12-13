@@ -122,7 +122,7 @@ module PCDM2Manifest
 
   def self.get_image_dimensions(image_uri)
     dimensions = {}
-    iiif_image_uri = IIIF_IMAGE_URI + get_path_from_uri(image_uri)
+    iiif_image_uri = IIIF_IMAGE_URI + PREFIX + get_path_from_uri(image_uri)
     info_uri = iiif_image_uri + '/info.json'
     info = iiif_get(info_uri).body
     dimensions['height'] = info['height']
@@ -383,9 +383,9 @@ module PCDM2Manifest
     manifest['metadata'].push({'label': 'Volume', 'value': issue[BIBO_VOLUME]})
     manifest['metadata'].push({'label': 'Issue', 'value': issue[BIBO_ISSUE]})
     manifest['thumbnail'] = manifest['thumbnail'].clone
-    manifest['thumbnail']['@id'] = IIIF_IMAGE_URI + first_page_id + '/full/80,100/0/default.jpg'
+    manifest['thumbnail']['@id'] = IIIF_IMAGE_URI + PREFIX + first_page_id + '/full/80,100/0/default.jpg'
     manifest['thumbnail']['service'] = manifest['thumbnail']['service'].clone
-    manifest['thumbnail']['service']['@id'] = IIIF_IMAGE_URI + first_page_id
+    manifest['thumbnail']['service']['@id'] = IIIF_IMAGE_URI + PREFIX + first_page_id
 
     # Populate Sequence properties
     sequence = manifest['sequences'][0].clone
@@ -441,7 +441,7 @@ module PCDM2Manifest
 
           # Populate Resource properties
           page_resource = resource_template.clone
-          page_resource['@id'] = IIIF_IMAGE_URI + file_id
+          page_resource['@id'] = IIIF_IMAGE_URI + PREFIX + file_id
           page_resource['format'] = mime_type
           page_resource[:height] = dimensions['height']
           page_resource[:width] = dimensions['width']
