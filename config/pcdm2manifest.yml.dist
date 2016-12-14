@@ -5,3 +5,5 @@ fcrepo_base_uri: https://fcrepolocal/fcrepo/rest/
 iiif_image_uri: https://iiiflocal/images/
 iiif_manifest_uri: https://iiiflocal/manifests/
 id_prefix: "fcrepo:"
+client_cert: /apps/iiif/ssl/iiif.pem
+client_key: /apps/iiif/ssl/iiif.key

@@ -38,10 +38,17 @@ module PCDM2Manifest
   MEMBER_OF = 'http://pcdm.org/models#memberOf'
   PROXY_FOR = 'http://www.openarchives.org/ore/terms/proxyFor'
 
-  @@fcrepo_conn = Faraday.new(:ssl => { ca_file: @@config['server_cert'] }) do |faraday|
+  ssl_options = { ca_file: @@config['server_cert'] }
+  if @@config['client_cert'] && @@config['client_key']
+    ssl_options['client_cert'] = OpenSSL::X509::Certificate.new(File.read(@@config['client_cert']))
+    ssl_options['client_key'] = OpenSSL::PKey::RSA.new(File.read(@@config['client_key']))
+  end
+  @@fcrepo_conn = Faraday.new(:ssl => ssl_options) do |faraday|
     faraday.response :json, :content_type => /\bjson$/
     faraday.adapter  Faraday.default_adapter
-    faraday.basic_auth(@@config['username'], @@config['password'])
+    if @@config['username'] && @@config['password']
+      faraday.basic_auth(@@config['username'], @@config['password'])
+    end
     faraday.headers['Accept'] = 'application/ld+json'
   end
 
@@ -235,7 +242,7 @@ module PCDM2Manifest
        'value' => '<span>From: <a href=\'http://example.org/db/1.html\'>Some Collection</a></span>'}
     ],
     'description' => '  ', # Issue Description
-    'thumbnail' => { 
+    'thumbnail' => {
       '@id' => 'http://example.org/images/book1-page1/full/80,100/0/default.jpg', # Issue First Page Image Thumbnail
       'service' => {
         '@context' => 'http://iiif.io/api/image/2/context.json',
@@ -287,14 +294,14 @@ module PCDM2Manifest
     # List of sequences
     'sequences' => [
       {
-        '@id' => 'http://example.org/iiif/book1/sequence/normal', # Derefrencing optionale 
+        '@id' => 'http://example.org/iiif/book1/sequence/normal', # Derefrencing optionale
         '@type' => 'sc:Sequence',
         'label' => 'Current Page Order',
         # sequence's page order should be included here, see below...
         #
         'viewingDirection' => 'left-to-right',
         'viewingHint' => 'paged',
-        'startCanvas' => 'http://example.org/iiif/book1/canvas/p2', # Default can be Page 1 Canvas 
+        'startCanvas' => 'http://example.org/iiif/book1/canvas/p2', # Default can be Page 1 Canvas
 
         # The order of the canvases
         'canvases' => [
@@ -398,7 +405,7 @@ module PCDM2Manifest
     canvas_template = canvases[0]
     canvases = Array.new
 
-    # Get the image template 
+    # Get the image template
     images = canvas_template['images']
     image_template = images[0]
 
