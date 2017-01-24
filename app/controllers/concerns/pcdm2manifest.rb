@@ -24,6 +24,8 @@ module PCDM2Manifest
   PCDM_OBJECT = 'http://pcdm.org/models#Object'
   PCDM_FILE = 'http://pcdm.org/models#File'
   DCTERMS_TITLE = 'http://purl.org/dc/terms/title'
+  DCTERMS_RIGHTS_HOLDER = 'http://purl.org/dc/terms/rightsHolder'
+  EDM_RIGHTS = 'http://www.europeana.eu/schemas/edm/rights'
   DC_DATE = 'http://purl.org/dc/elements/1.1/date'
   BIBO_EDITION = 'http://purl.org/ontology/bibo/edition'
   BIBO_ISSUE = 'http://purl.org/ontology/bibo/issue'
@@ -270,7 +272,7 @@ module PCDM2Manifest
     },
 
     # Links
-    'related':{
+    'related' => {
       '@id' => 'http://example.org/videos/video-book1.mpg',
       'format' => 'video/mpeg'
     },
@@ -359,11 +361,14 @@ module PCDM2Manifest
     ]
   }
 
-  # Remove any properties that are currently used
+  # Remove any properties that are currently not used
+  @@manifest_template.delete('description')
   @@manifest_template.delete('related')
   @@manifest_template.delete('service')
   @@manifest_template.delete('seeAlso')
   @@manifest_template.delete('rendering')
+  @@manifest_template.delete('viewingDirection')
+  @@manifest_template.delete('within')
   @@manifest_template['sequences'][0]['canvases'][0].delete('otherContent')
   @@manifest_template['logo'].delete('service')
 
@@ -384,6 +389,17 @@ module PCDM2Manifest
     manifest = @@manifest_template.clone
     manifest['@id'] = IIIF_MANIFEST_URI + PREFIX + issue_id_encoded + '/manifest'
     manifest['label'] = issue[DCTERMS_TITLE]
+    manifest['navDate'] = issue[DC_DATE][0]['@value'] + 'T00:00:00Z'
+    if issue[DCTERMS_RIGHTS_HOLDER]
+      manifest['attribution'] = issue[DCTERMS_RIGHTS_HOLDER][0]['@value']
+    else
+      manifest.delete('attribution')
+    end
+    if issue[EDM_RIGHTS]
+      manifest['license'] = issue[EDM_RIGHTS][0]['@id']
+    else
+      manifest.delete('license')
+    end
     manifest['metadata'] = Array.new
     manifest['metadata'].push({'label': 'Date', 'value': issue[DC_DATE]})
     manifest['metadata'].push({'label': 'Edition', 'value': issue[BIBO_EDITION]})
