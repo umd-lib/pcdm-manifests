@@ -1,0 +1,76 @@
+canvases = []
+@doc[:pages].each do |page|
+  canvas = {
+    '@id': page[:canvas_id],
+    '@type': 'sc:Canvas',
+    'label': page[:display_title],
+    'height': page[:canvas_height],
+    'width': page[:canvas_width],
+
+    'images': [
+      {
+        '@id': page[:image_id],
+        '@type': 'oa:Annotation',
+        'motivation': 'sc:painting',
+        'resource': {
+          '@id': page[:resource_id],
+          '@type': 'dctypes:Image',
+          'format': 'image/jpeg',
+          'service': {
+            '@context': 'http://iiif.io/api/image/2/context.json',
+            '@id': page[:resource_id],
+            'profile': 'http://iiif.io/api/image/2/profiles/level2.json'
+          },
+          'height': page[:image_height],
+          'width': page[:image_width]
+        },
+        'on': page[:canvas_id]
+      }
+    ]
+  }
+  canvases.push(canvas)
+end
+
+json = {
+  '@context': 'http://iiif.io/api/presentation/2/context.json',
+  '@id': @doc[:id],
+  '@type': 'sc:Manifest',
+
+  'label': @doc[:display_title],
+  'metadata': [
+    {'label': 'Date', 'value': @doc[:date]},
+    {'label': 'Edition', 'value': @doc[:issue_edition]},
+    {'label': 'Volume', 'value': @doc[:issue_volume]},
+    {'label': 'Issue', 'value': @doc[:issue_issue]}
+  ],
+  'thumbnail': {
+    '@id': @doc[:thumbnail_id],
+    'service': {
+      '@context': 'http://iiif.io/api/image/2/context.json',
+      '@id': @doc[:thumbnail_service_id],
+      'profile': 'http://iiif.io/api/image/2/level1.json'
+    }
+  },
+  'navDate': @doc[:date],
+  'license': @doc[:license],
+  'attribution': @doc[:attribution],
+
+  'logo': {
+    '@id': 'http://wwwdev.lib.umd.edu/images/wrapper/liblogo.png',
+    'service': {
+      '@context': 'http://iiif.io/api/image/2/context.json',
+      '@id': 'http://example.org/service/inst1',
+      'profile': 'http://iiif.io/api/image/2/profiles/level2.json'
+    }
+  },
+
+  'sequences': [
+    {
+      '@id': @doc[:sequence_id],
+      '@type': 'sc:Sequence',
+      'label': 'Current Page Order',
+      'startCanvas': @doc[:start_canvas],
+      'canvases': canvases
+    }
+  ]
+}

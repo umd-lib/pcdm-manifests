@@ -52,8 +52,4 @@ Rails.application.configure do
   # routes, locales, etc. This feature depends on the listen gem.
   config.file_watcher = ActiveSupport::EventedFileUpdateChecker
 
-  # Allow CORS in development environment
-  config.action_dispatch.default_headers = {
-    'Access-Control-Allow-Origin' => '*'
-  }
 end
