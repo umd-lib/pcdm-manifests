@@ -83,3 +83,8 @@ Example:
 app/controllers/concerns/pcdm2manifest.rb https://fcrepolocal/fcrepo/rest/pcdm/ab/b4/b3/04/abb4b304-5e96-478f-8abb-8c5aafd42223
 ```
 
+
+## License
+
+See the [LICENSE](LICENSE.md) file for license rights and limitations (Apache 2.0).
+
