@@ -11,7 +11,7 @@ class ManifestsController < ApplicationController
     prefixed_id = params[:id]
     verify_prefix(prefixed_id)
     @doc = get_solr_doc(prefixed_id)
-    case @doc[:component]
+    case @doc[:component].downcase
     when "issue"
       prepare_for_render(@doc)
       render :show
