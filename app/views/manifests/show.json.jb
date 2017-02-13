@@ -3,7 +3,7 @@ canvases = []
   canvas = {
     '@id': page[:canvas_id],
     '@type': 'sc:Canvas',
-    'label': page[:display_title],
+    'label': 'Page ' + page[:page_number].to_s,
     'height': page[:canvas_height],
     'width': page[:canvas_width],
 
