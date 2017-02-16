@@ -80,7 +80,7 @@ module ManifestHelper
       page[:image_mime_type] = image[:mime_type]
       page[:canvas_id] = base_id + '/canvas/' + get_formatted_id(page_id)
       page[:image_id] = base_id + '/annotation/' + get_formatted_id(image_id)
-      page[:resource_id] = IMAGE_URL + get_prefixed_id(image_id)
+      page[:resource_id] = IMAGE_URL + get_formatted_id(image_id)
     end
   end
 

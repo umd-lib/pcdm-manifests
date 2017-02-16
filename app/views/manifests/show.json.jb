@@ -56,7 +56,7 @@ json = {
   'attribution': @doc[:attribution],
 
   'logo': {
-    '@id': 'http://wwwdev.lib.umd.edu/images/wrapper/liblogo.png',
+    '@id': 'https://www.lib.umd.edu/images/wrapper/liblogo.png',
     'service': {
       '@context': 'http://iiif.io/api/image/2/context.json',
       '@id': 'http://example.org/service/inst1',
