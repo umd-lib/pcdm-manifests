@@ -1,0 +1,13 @@
+# Enviroment variables for the fcrepo-search webapp
+
+# URL of the solr running in the fcrepo-vagrant
+SOLR_URL=https://solrlocal:8984/solr/fedora4/
+
+# URL of the fcrepo running in the fcrepo-vagrant
+FCREPO_URL=https://fcrepolocal/fcrepo/rest/
+
+# URL of the pcdm-manifest running in the iiif-vagrant
+IIIF_IMAGE_URL=https://iiiflocal/images/
+
+# URL of the pcdm-manifest running in the iiif-vagrant
+IIIF_MANIFEST_URL=https://iiiflocal/manifests/
