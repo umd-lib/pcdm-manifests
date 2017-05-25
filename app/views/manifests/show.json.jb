@@ -28,6 +28,14 @@ canvases = []
       }
     ]
   }
+  if page[:search_hits_list]
+    canvas['otherContent'] = [
+      {
+        '@id': page[:search_hits_list],
+        '@type': 'sc:AnnotationList',
+      }
+    ]
+  end
   canvases.push(canvas)
 end
 
