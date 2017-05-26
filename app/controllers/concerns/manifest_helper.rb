@@ -118,6 +118,47 @@ module ManifestHelper
     }
   end
 
+  def get_textblock_list(manifest_id, canvas_uri)
+    base_uri = MANIFEST_URL + manifest_id
+    solr_params = {
+      'fq'             => ['rdf_type:oa\:Annotation', "annotation_source:#{canvas_uri.gsub(':', '\:')}"],
+      'wt'             => 'json',
+      'q' => '*:*',
+      'fl'             => '*',
+      'rows' => 100,
+    }
+    res = HTTP_CONN.get SOLR_URL + "select", solr_params
+    annotations = []
+    results = JSON.parse(res.body)
+    coord_tag_pattern = /\|(\d+,\d+,\d+,\d+)/
+    annotation_list_uri = base_uri + '/list/' + uri_to_id(canvas_uri)
+
+    docs = results['response']['docs']
+    docs.each do |doc|
+      annotations.push({
+        '@id' => '#' + doc['resource_selector'][0],
+        "@type" => ["oa:Annotation", "umd:articleSegment"],
+        "on" => {
+          "@type" => "oa:SpecificResource",
+          "selector" => {
+            "@type" => "oa:FragmentSelector",
+            "value" => doc['resource_selector'][0]
+          },
+          "full" => doc['annotation_source'][0]
+        },
+        "resource" => [
+          {
+            "@type" => "cnt:ContentAsText",
+            "format" => "text/plain",
+            "chars" => doc['extracted_text'].gsub(coord_tag_pattern, '')
+          }
+        ],
+        "motivation" => "sc:painting"
+      })
+    end
+    annotation_list(annotation_list_uri, annotations)
+  end
+
   def get_image(doc, page_id)
     doc[:images][:docs].each do |image|
       if page_id == image[:pcdm_file_of]
@@ -151,6 +192,7 @@ module ManifestHelper
       page[:image_id] = base_id + '/annotation/' + get_formatted_id(image_id)
       page[:resource_id] = IMAGE_URL + get_formatted_id(image_id)
       page[:search_hits_list] = query ? base_id + '/list/' + get_formatted_id(page_id) + '?q=' + encode(query) : nil
+      page[:textblocks_list] = base_id + '/list/' + get_formatted_id(page_id)
     end
   end
 
