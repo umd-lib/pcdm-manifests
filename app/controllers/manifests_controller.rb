@@ -28,6 +28,11 @@ class ManifestsController < ApplicationController
     verify_prefix(manifest_id)
     canvas_id = params[:list_id]
     verify_prefix(canvas_id)
-    render json: get_highlighted_hits(manifest_id, id_to_uri(canvas_id), params[:q])
+    if params[:q]
+      render json: get_highlighted_hits(manifest_id, id_to_uri(canvas_id), params[:q])
+    else
+      # text block sc:painting annotations
+      render json: get_textblock_list(manifest_id, id_to_uri(canvas_id))
+    end
   end
 end
