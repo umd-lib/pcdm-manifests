@@ -16,7 +16,8 @@ class ManifestsController < ApplicationController
       prepare_for_render(@doc, params[:q])
       render :show
     when "page"
-      redirect_to '/manifests/' + get_formatted_id(get_path(@doc[:page_issue])) + '/manifest', status: :see_other
+      page_id = get_prefixed_id(get_path(@doc[:page_issue]))
+      redirect_to manifest_url(id: page_id, q: params[:q]), status: :see_other
     else
       raise ActionController::RoutingError.new('Not an PCDM Object/File: ' + prefixed_id)
     end
