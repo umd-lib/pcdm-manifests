@@ -26,8 +26,20 @@ canvases = []
         },
         'on': page[:canvas_id]
       }
+    ],
+    'otherContent': [
+      {
+        '@id': page[:textblocks_list],
+        '@type': 'sc:AnnotationList'
+      }
     ]
   }
+  if page[:search_hits_list]
+    canvas[:otherContent].push({
+      '@id': page[:search_hits_list],
+      '@type': 'sc:AnnotationList',
+    })
+  end
   canvases.push(canvas)
 end
 
