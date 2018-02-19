@@ -11,6 +11,8 @@ module ManifestHelper
   MANIFEST_URL = Rails.application.config.iiif_manifest_url
   SOLR_URL = Rails.application.config.solr_url
   HTTP_CONN = Faraday.new(ssl: {verify: false}, request: {params_encoder: Faraday::FlatParamsEncoder})
+  MANIFEST_LEVEL = ['issue', 'letter', 'reel']
+  CANVAS_LEVEL = ['page']
 
   def verify_prefix(id)
     raise "Missing prefix: " + ID_PREFIX unless id.starts_with?(ID_PREFIX)
@@ -55,6 +57,14 @@ module ManifestHelper
     doc = eval(response.body)["response"]["docs"][0]
     raise "No results for #{SOLR_URL + DEFAULT_PATH + quote(doc_id)}" if doc.nil?
     doc.with_indifferent_access
+  end
+
+  def is_manifest_level?(component)
+    MANIFEST_LEVEL.include? component.downcase
+  end
+
+  def is_canvas_level?(component)
+    CANVAS_LEVEL.include? component.downcase
   end
 
   def get_highlighted_hits(manifest_id, canvas_uri, query)
@@ -197,12 +207,14 @@ module ManifestHelper
   end
 
   def add_thumbnail_info(doc)
+    return if doc[:pages].empty?
     first_image_resource_id = get_path(doc[:pages][0][:resource_id])
     doc[:thumbnail_service_id] = first_image_resource_id
     doc[:thumbnail_id] = first_image_resource_id + '/full/80,100/0/default.jpg'
   end
 
   def add_sequence_info(doc)
+    return if doc[:pages].empty?
     issue_id = get_path(doc[:id])
     first_page_id = get_path(doc[:pages][0][:id])
     sequence_base = MANIFEST_URL + get_formatted_id(issue_id)

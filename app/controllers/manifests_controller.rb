@@ -11,11 +11,10 @@ class ManifestsController < ApplicationController
     prefixed_id = params[:id]
     verify_prefix(prefixed_id)
     @doc = get_solr_doc(prefixed_id)
-    case @doc[:component].downcase
-    when "issue"
+    if is_manifest_level? @doc[:component]
       prepare_for_render(@doc, params[:q])
       render :show
-    when "page"
+    elsif is_canvas_level? @doc[:component]
       page_id = get_prefixed_id(get_path(@doc[:page_issue]))
       redirect_to manifest_url(id: page_id, q: params[:q]), status: :see_other
     else
@@ -23,6 +22,7 @@ class ManifestsController < ApplicationController
     end
   end
 
+  # GET /manifests/:id/list/:list_id
   def show_list
     prefix, path = params[:id].split /:/
     manifest_id = "#{prefix}:#{encode(path)}"
