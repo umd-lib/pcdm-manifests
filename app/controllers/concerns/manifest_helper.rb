@@ -11,7 +11,7 @@ module ManifestHelper
   MANIFEST_URL = Rails.application.config.iiif_manifest_url
   SOLR_URL = Rails.application.config.solr_url
   HTTP_CONN = Faraday.new(ssl: {verify: false}, request: {params_encoder: Faraday::FlatParamsEncoder})
-  MANIFEST_LEVEL = ['issue', 'letter', 'reel']
+  MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel']
   CANVAS_LEVEL = ['page']
 
   def verify_prefix(id)
