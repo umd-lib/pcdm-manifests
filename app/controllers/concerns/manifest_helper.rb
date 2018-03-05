@@ -1,16 +1,20 @@
 require 'faraday'
+require 'faraday_middleware'
 require 'erb'
 
 module ManifestHelper
   extend ActiveSupport::Concern
 
-  DEFAULT_PATH = 'pcdm?wt=ruby&q=id:'
+  DEFAULT_PATH = 'pcdm?wt=json&q=id:'
   ID_PREFIX = "fcrepo:"
   FCREPO_URL = Rails.application.config.fcrepo_url
   IMAGE_URL = Rails.application.config.iiif_image_url
   MANIFEST_URL = Rails.application.config.iiif_manifest_url
   SOLR_URL = Rails.application.config.solr_url
-  HTTP_CONN = Faraday.new(ssl: {verify: false}, request: {params_encoder: Faraday::FlatParamsEncoder})
+  HTTP_CONN = Faraday.new(ssl: {verify: false}, request: {params_encoder: Faraday::FlatParamsEncoder}) do |faraday|
+    faraday.response :json
+    faraday.adapter Faraday.default_adapter
+  end
   MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel']
   CANVAS_LEVEL = ['page']
 
@@ -54,16 +58,18 @@ module ManifestHelper
     doc_id = id_to_uri(id)
     response = HTTP_CONN.get get_solr_url(doc_id)
     raise "Got #{response.status} for #{SOLR_URL + DEFAULT_PATH + quote(doc_id)}" unless response.success?
-    doc = eval(response.body)["response"]["docs"][0]
+    doc = response.body["response"]["docs"][0]
     raise "No results for #{SOLR_URL + DEFAULT_PATH + quote(doc_id)}" if doc.nil?
     doc.with_indifferent_access
   end
 
   def is_manifest_level?(component)
+    return false unless component
     MANIFEST_LEVEL.include? component.downcase
   end
 
   def is_canvas_level?(component)
+    return false unless component
     CANVAS_LEVEL.include? component.downcase
   end
 
@@ -188,6 +194,7 @@ module ManifestHelper
   def add_page_info(doc, query)
     issue_id = get_path(doc[:id])
     base_id = MANIFEST_URL + get_formatted_id(issue_id)
+    doc[:rights] = doc[:rights].is_a?(Array) ? doc[:rights][0] : doc[:rights]
     doc[:pages] = doc[:pages][:docs]
     doc[:pages].each do |page|
       image = get_image(doc, page[:id])

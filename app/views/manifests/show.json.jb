@@ -64,7 +64,7 @@ json = {
     }
   },
   'navDate': @doc[:date],
-  'license': @doc[:license],
+  'license': @doc[:rights],
   'attribution': @doc[:attribution],
 
   'logo': {
