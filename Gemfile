@@ -28,6 +28,7 @@ gem 'jbuilder', '~> 2.5'
 
 # Http Client
 gem 'faraday'
+gem 'faraday_middleware'
 
 # JSON view template
 gem 'jb'
