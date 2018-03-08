@@ -184,11 +184,9 @@ module ManifestHelper
   end
 
   def canvas_length(length)
-    if length > 1200
-      return length
-    else
-      return 2 * length
-    end
+    return 1200 if length.nil?
+    return 2 * length if length <= 1200
+    length
   end
 
   def add_page_info(doc, query)
