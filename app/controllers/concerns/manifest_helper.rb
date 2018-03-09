@@ -260,7 +260,7 @@ module ManifestHelper
 
   def add_thumbnail_info(doc)
     return if doc[:pages].empty?
-    first_image_resource_id = get_path(doc[:pages][0][:resource_id])
+    first_image_resource_id = doc[:pages][0][:resource_id]
     doc[:thumbnail_service_id] = first_image_resource_id
     doc[:thumbnail_id] = first_image_resource_id + '/full/80,100/0/default.jpg'
   end
