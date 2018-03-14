@@ -1,6 +1,8 @@
 # pcdm-manifests
 
-Utility to generate IIIF Manifests from PCDM objects and deliver them through a web interface.
+Implementation of the [IIIF Presentation API](http://iiif.io/api/presentation/2.1/)
+that generates IIIF Manifests from [PCDM](https://pcdm.org/) objects in a Fedora 
+repository.
 
 ## Quick Start
 
@@ -10,79 +12,44 @@ Requires Ruby v2.2.4
 git clone git@github.com:umd-lib/pcdm-manifests.git
 cd pcdm-manifests
 
-# Copy the config file
-cp config/pcdm2manifest.yml.dist config/pcdm2manifest.yml
-
-# Set the appropriate configuration
-vim config/pcdm2manifest.yml
-
 gem install bundler
 bundle install
 rails server
 ```
 
-Json manifests of an issue can be obtained by making a HTTP get request in the following format.
+JSON manifests of an issue can be obtained by making a HTTP get request in the following format.
 
 ```
-curl http://localhost:3000/manifests/<ENCODED_PCDM_RESOURCE_RELATIVE_PATH>
+curl http://localhost:3000/manifests/<IIIF_ID>/manifest
 ```
 
-Where `ENCODED_PCDM_RESOURCE_RELATIVE_PATH` should be:
+Where `IIIF_ID` should consist of:
 
-* the part of the pcdm resource uri after the `fcrepo_base_uri`.
-* url encoded (to replace `/` by `%2F`).
-* the path of an issue, or a page or file related to the issue.
+* the prefix `fcrepo:`
+* the URL_encoded repository path to the resource (part of the PCDM resource URI after the Fedora base URI)
 
-For example, given the URI of an issue/page/file in fcrepo:
+### Example
 
-```
-https://fcrepolocal/fcrepo/rest/pcdm/ab/b4/b3/04/abb4b304-5e96-478f-8abb-8c5aafd42223
-```
-
-The manifest URI will be:
-
-```
-http://localhost:3000/manifests/ab%2Fb4%2Fb3%2F04%2Fabb4b304-5e96-478f-8abb-8c5aafd42223
-```
+|                   |Value|
+|-------------------|-----|
+|**Fedora URI**     |https://fcrepolocal/fcrepo/rest/pcdm/ab/b4/b3/04/abb4b304-5e96-478f-8abb-8c5aafd42223|
+|**Fedora Base URI**|https://fcrepolocal/fcrepo/rest/|
+|**IIIF ID**        |fcrepo:ab%2Fb4%2Fb3%2F04%2Fabb4b304-5e96-478f-8abb-8c5aafd42223|
+|**Manifest URI**   |http://localhost:3000/manifests/fcrepo:ab%2Fb4%2Fb3%2F04%2Fabb4b304-5e96-478f-8abb-8c5aafd42223/manifest|
 
 ## Configuration
 
-The `config/pcdm2manifest.yml` file has the configuration option necessary for the generation of the manifests from a fedora resource id.
+The following environment variables are used to configure the services
+used by PCDM Manifests:
 
-```
-# Provide the path the https certificate of the fcrepo server.
-# REQUIRED if the fcrepo server has a self signed certificate.
-server_cert: fcrepolocal.pem
+|Variable           |Purpose|
+|-------------------|-------|
+|`SOLR_URL`         |URL of the Solr core to query; this core must have a `pcdm` request handler|
+|`FCREPO_URL`       |Base URL of the Fedora repository|
+|`IIIF_IMAGE_URL`   |Base URL for the IIIF Image API service|
+|`IIIF_MANIFEST_URL`|Base URL for this service|
 
-# Authentication information for fcrepo
-username: tester 
-password: tester
-
-# Fcrepo PCDM container URI
-fcrepo_base_uri: https://fcrepolocal/fcrepo/rest/pcdm/
-
-# IIIF Image Server Base URI
-iiif_image_uri: https://iiiflocal/images/
-
-# IIIF Manifests Server Base URI
-iiif_manifest_uri: https://iiiflocal/manifests/
-```
-
-### Using the pcdm2manifest.rb script from command line:
-The `pcdm2manifest.rb` can also be used from the command line to generate the manifest of a given fcrepo pcdm resource. The script has to be run from the root directory of the project for the configuration files to be accessible. 
-
-Syntax:
-
-```
-app/controllers/concerns/pcdm2manifest.rb <FCREPO_RESOURCE_URI>
-```
-
-Example:
-
-```
-app/controllers/concerns/pcdm2manifest.rb https://fcrepolocal/fcrepo/rest/pcdm/ab/b4/b3/04/abb4b304-5e96-478f-8abb-8c5aafd42223
-```
-
+See [config/application.rb](config/application.rb) for examples.
 
 ## License
 

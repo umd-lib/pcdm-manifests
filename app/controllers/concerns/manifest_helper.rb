@@ -5,6 +5,46 @@ require 'erb'
 module ManifestHelper
   extend ActiveSupport::Concern
 
+  # RFC 7807 Problem Details format
+  # https://tools.ietf.org/html/rfc7807
+  module ProblemDetails
+    def to_h
+      {
+        title: self.title,
+        details: self.message,
+        status: self.status
+      }
+    end
+  end
+
+  class BadRequestError < StandardError
+    include ProblemDetails
+    def title
+      'Bad Request'
+    end
+    def status
+      400
+    end
+  end
+  class NotFoundError < StandardError
+    include ProblemDetails
+    def title
+      'Not Found'
+    end
+    def status
+      404
+    end
+  end
+  class InternalServerError < StandardError
+    include ProblemDetails
+    def title
+      'Internal Server Error'
+    end
+    def status
+      500
+    end
+  end
+
   DEFAULT_PATH = 'pcdm?wt=json&q=id:'
   ID_PREFIX = "fcrepo:"
   FCREPO_URL = Rails.application.config.fcrepo_url
@@ -12,14 +52,15 @@ module ManifestHelper
   MANIFEST_URL = Rails.application.config.iiif_manifest_url
   SOLR_URL = Rails.application.config.solr_url
   HTTP_CONN = Faraday.new(ssl: {verify: false}, request: {params_encoder: Faraday::FlatParamsEncoder}) do |faraday|
-    faraday.response :json
+    faraday.response :json, content_type: /\bjson$/
     faraday.adapter Faraday.default_adapter
   end
   MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel']
   CANVAS_LEVEL = ['page']
+  HTTP_ERRORS = [BadRequestError, NotFoundError, InternalServerError]
 
   def verify_prefix(id)
-    raise "Missing prefix: " + ID_PREFIX unless id.starts_with?(ID_PREFIX)
+    raise NotFoundError, "Identifier #{id} is missing prefix #{ID_PREFIX}" unless id.starts_with?(ID_PREFIX)
   end
 
   def encode(str)
@@ -39,6 +80,7 @@ module ManifestHelper
   end
 
   def get_path(id)
+    raise NotFoundError, "URI #{id} does not have a recognized base URI" unless id.start_with? FCREPO_URL
     id[FCREPO_URL.length..id.length]
   end
 
@@ -56,10 +98,15 @@ module ManifestHelper
 
   def get_solr_doc(id)
     doc_id = id_to_uri(id)
-    response = HTTP_CONN.get get_solr_url(doc_id)
-    raise "Got #{response.status} for #{SOLR_URL + DEFAULT_PATH + quote(doc_id)}" unless response.success?
+    solr_url = get_solr_url(doc_id)
+    begin
+      response = HTTP_CONN.get solr_url
+    rescue Faraday::ConnectionFailed => e
+      raise InternalServerError, "Unable to connect to Solr"
+    end
+    raise InternalServerError, "Got a #{response.status} response from Solr" unless response.success?
     doc = response.body["response"]["docs"][0]
-    raise "No results for #{SOLR_URL + DEFAULT_PATH + quote(doc_id)}" if doc.nil?
+    raise NotFoundError, "No Solr document with id #{doc_id}" if doc.nil?
     doc.with_indifferent_access
   end
 
@@ -89,7 +136,7 @@ module ManifestHelper
     res = HTTP_CONN.get SOLR_URL + "select", solr_params
     ocr_field = 'extracted_text'
     annotations = []
-    results = JSON.parse(res.body)
+    results = res.body
     highlight_pattern = /<em>([^<]*)<\/em>/
     coord_pattern = /(\d+,\d+,\d+,\d+)/
     annotation_list_uri = base_uri + '/list/' + uri_to_id(canvas_uri) + '?q=' + encode(query)
@@ -145,7 +192,7 @@ module ManifestHelper
     }
     res = HTTP_CONN.get SOLR_URL + "select", solr_params
     annotations = []
-    results = JSON.parse(res.body)
+    results = res.body
     coord_tag_pattern = /\|(\d+,\d+,\d+,\d+)/
     annotation_list_uri = base_uri + '/list/' + uri_to_id(canvas_uri)
 
@@ -184,11 +231,9 @@ module ManifestHelper
   end
 
   def canvas_length(length)
-    if length > 1200
-      return length
-    else
-      return 2 * length
-    end
+    return 1200 if length.nil?
+    return 2 * length if length <= 1200
+    length
   end
 
   def add_page_info(doc, query)
@@ -215,7 +260,7 @@ module ManifestHelper
 
   def add_thumbnail_info(doc)
     return if doc[:pages].empty?
-    first_image_resource_id = get_path(doc[:pages][0][:resource_id])
+    first_image_resource_id = doc[:pages][0][:resource_id]
     doc[:thumbnail_service_id] = first_image_resource_id
     doc[:thumbnail_id] = first_image_resource_id + '/full/80,100/0/default.jpg'
   end
