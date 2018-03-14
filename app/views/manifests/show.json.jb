@@ -64,16 +64,11 @@ json = {
     }
   },
   'navDate': @doc[:date],
-  'license': @doc[:license],
+  'license': @doc[:rights],
   'attribution': @doc[:attribution],
 
   'logo': {
-    '@id': 'https://www.lib.umd.edu/images/wrapper/liblogo.png',
-    'service': {
-      '@context': 'http://iiif.io/api/image/2/context.json',
-      '@id': 'http://example.org/service/inst1',
-      'profile': 'http://iiif.io/api/image/2/profiles/level2.json'
-    }
+    '@id': 'https://www.lib.umd.edu/images/wrapper/liblogo.png'
   },
 
   'sequences': [
