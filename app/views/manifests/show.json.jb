@@ -54,7 +54,7 @@ json = {
     {'label': 'Edition', 'value': @doc[:issue_edition]},
     {'label': 'Volume', 'value': @doc[:issue_volume]},
     {'label': 'Issue', 'value': @doc[:issue_issue]},
-    {'label': 'Bibliographic Citation', 'value': @doc[:citation]}
+    {'label': 'Bibliographic Citation', 'value': @doc[:citation].join(' ')}
   ],
   'thumbnail': {
     '@id': @doc[:thumbnail_id],
