@@ -240,6 +240,7 @@ module ManifestHelper
     issue_id = get_path(doc[:id])
     base_id = MANIFEST_URL + get_formatted_id(issue_id)
     doc[:rights] = doc[:rights].is_a?(Array) ? doc[:rights][0] : doc[:rights]
+    doc[:date] = doc[:display_date] || doc[:date].sub(/T.*/, '')
     doc[:pages] = doc[:pages][:docs]
     doc[:pages].each do |page|
       image = get_image(doc, page[:id])
