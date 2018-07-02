@@ -242,6 +242,7 @@ module ManifestHelper
     doc[:rights] = doc[:rights].is_a?(Array) ? doc[:rights][0] : doc[:rights]
     doc[:date] = doc[:display_date] || doc[:date].sub(/T.*/, '')
     doc[:pages] = doc[:pages][:docs]
+    doc[:citation] = doc[:citation].join(' ') if doc[:citation]
     doc[:pages].each do |page|
       image = get_image(doc, page[:id])
       page_id = get_path(page[:id])
