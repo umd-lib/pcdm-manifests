@@ -13,7 +13,7 @@ module IIIF
       SOLR_URL = CONFIG['solr_url']
 
       def image_base_uri
-        CONFIG['iiif_image_url']
+        CONFIG['image_url']
       end
 
       def get_formatted_id(path)
