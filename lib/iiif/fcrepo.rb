@@ -120,8 +120,8 @@ module IIIF
         doc[:pages][:docs].map {|page_doc| get_page(doc, page_doc)}
       end
 
-      def date
-        doc[:display_date] || (doc[:date].sub(/T.*/, '') if doc[:date])
+      def nav_date
+        doc[:date]
       end
 
       def license
@@ -138,8 +138,9 @@ module IIIF
 
       def metadata
         citation = doc[:citation] ? doc[:citation].join(' ') : nil
+        display_date = doc[:display_date] || (doc[:date].sub(/T.*/, '') if doc[:date])
         [
-          {'label': 'Date', 'value': date},
+          {'label': 'Date', 'value': display_date},
           {'label': 'Edition', 'value': doc[:issue_edition]},
           {'label': 'Volume', 'value': doc[:issue_volume]},
           {'label': 'Issue', 'value': doc[:issue_issue]},
