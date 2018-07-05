@@ -33,6 +33,9 @@ gem 'faraday_middleware'
 # JSON view template
 gem 'jb'
 
+# XML parsing
+gem 'nokogiri'
+
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
 

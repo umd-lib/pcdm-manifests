@@ -1,6 +1,7 @@
+require 'errors'
+
 class ManifestsController < ApplicationController
-  include ManifestHelper
-  include FcrepoHelper
+  include Errors
 
   # Render the index page
   def index
@@ -15,7 +16,7 @@ class ManifestsController < ApplicationController
       elsif item.is_canvas_level?
         redirect_to_manifest item
       else
-        raise BadRequestError, "Resource #{id} does not have a recognized manifest or canvas type"
+        raise BadRequestError, "Resource #{params[:id]} does not have a recognized manifest or canvas type"
       end
     rescue *HTTP_ERRORS => e
       render json: e.to_h, status: e.status
@@ -27,15 +28,17 @@ class ManifestsController < ApplicationController
     begin
       if item.is_manifest_level?
         if params[:q]
-          render json: item.get_highlighted_hits(params[:list_id])
+          raise NotFoundError, "No annotation list available" unless item.methods.include? :search_hit_list
+          render json: item.search_hit_list(params[:list_id])
         else
+          raise NotFoundError, "No annotation list available" unless item.methods.include? :textblock_list
           # text block sc:painting annotations
-          render json: item.get_textblock_list(params[:list_id])
+          render json: item.textblock_list(params[:list_id])
         end
       elsif item.is_canvas_level?
         redirect_to_manifest item
       else
-        raise BadRequestError, "Resource #{id} does not have a recognized manifest or canvas type"
+        raise BadRequestError, "Resource #{params[:id]} does not have a recognized manifest or canvas type"
       end
     rescue *HTTP_ERRORS => e
       render json: e.to_h, status: e.status
@@ -48,9 +51,11 @@ class ManifestsController < ApplicationController
     return @item if @item
     prefix, path = params[:id].split(':', 2)
     raise BadRequestError, "Manifest ID must be in the form prefix:local" unless prefix && path
-    if prefix == 'fcrepo'
-      @item = FcrepoItem.new(path, params[:q])
-    else
+    begin
+      require "iiif/#{prefix}"
+      classname = "IIIF::#{prefix.capitalize}::Item".constantize
+      @item = classname.new(path, params[:q])
+    rescue LoadError => e
       raise NotFoundError, "Unrecognized prefix '#{prefix}'"
     end
   end
