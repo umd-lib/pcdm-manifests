@@ -21,16 +21,25 @@ module IIIF
       end
 
       def get_path(uri)
-        path = uri[CONFIG['fcrepo_url'].length..uri.length]
-        path.gsub('/', ':').gsub /:(..):(..):(..):(..):\1\2\3\4/, '::\1\2\3\4'
+        compress_path(uri[CONFIG['fcrepo_url'].length..uri.length])
       end
 
       def path_to_uri(path)
+        CONFIG['fcrepo_url'] + expand_path(path)
+      end
+
+      # remove the pairtree from the path
+      def compress_path(path)
+        path.gsub('/', ':').gsub(/:(..):(..):(..):(..):\1\2\3\4/, '::\1\2\3\4')
+      end
+
+      # reinsert the pairtree into the path
+      def expand_path(path)
         if m = path.match(/^([^:]+)::((..)(..)(..)(..).*)/)
           pairtree = m[3..6].join('/')
           path = "#{m[1]}/#{pairtree}/#{m[2]}"
         end
-        CONFIG['fcrepo_url'] + path.gsub(':', '/')
+        path.gsub(':', '/')
       end
 
       MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel']
@@ -99,7 +108,9 @@ module IIIF
       def get_image(image_doc)
         IIIF::Image.new.tap do |image|
           image.uri = image_doc[:id]
-          image.id = get_formatted_id(get_path(image.uri))
+          # re-expand the path for image IDs that are destined for Loris
+          # since it currently cannot process the shorthand pcdm::... notation
+          image.id = get_formatted_id(expand_path(get_path(image.uri)))
           image.width = image_doc[:image_width]
           image.height = image_doc[:image_height]
         end
