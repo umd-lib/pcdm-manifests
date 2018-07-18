@@ -121,7 +121,7 @@ module IIIF
       end
 
       def date
-        doc[:display_date] || doc[:date].sub(/T.*/, '')
+        doc[:display_date] || (doc[:date].sub(/T.*/, '') if doc[:date])
       end
 
       def license
