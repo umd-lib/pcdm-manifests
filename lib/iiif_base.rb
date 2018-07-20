@@ -34,7 +34,7 @@ module IIIF
     def label
     end
 
-    def date
+    def nav_date
     end
 
     def license
@@ -44,7 +44,16 @@ module IIIF
     end
 
     def metadata
-      {}
+      []
+    end
+
+    def description
+    end
+
+    def viewing_direction
+    end
+
+    def viewing_hint
     end
 
     def annotation_list(uri, annotations)
@@ -86,6 +95,7 @@ module IIIF
               'on' => canvas_uri(page.id)
             }
           ],
+          'thumbnail' => thumbnail(image),
           'otherContent' => other_content(page)
         }
       end
@@ -115,27 +125,23 @@ module IIIF
         '@type' => 'sc:Manifest',
         'label' => label,
         'metadata' => metadata,
-        'navDate' => date,
-        'license' => license,
-        'attribution' => attribution,
         'sequences' => [],
         'thumbnail' => {},
         'logo' => {
           '@id' => 'https://www.lib.umd.edu/images/wrapper/liblogo.png'
         }
       }.tap do |manifest|
+        manifest['navDate'] = nav_date if nav_date
+        manifest['license'] = license if license
+        manifest['attribution'] = attribution if attribution
+        manifest['description'] = description if description
+        manifest['viewing_direction'] = viewing_direction if viewing_direction
+        manifest['viewing_hint'] = viewing_hint if viewing_hint
         if pages.length > 0
           first_page = pages[0]
           first_image = first_page.image
 
-          manifest['thumbnail'] = {
-            '@id' => image_uri(first_image.id, size: '80,100'),
-            'service' => {
-              '@context' => 'http://iiif.io/api/image/2/context.json',
-              '@id' => image_uri(first_image.id),
-              'profile' => 'http://iiif.io/api/image/2/level1.json'
-            }
-          }
+          manifest['thumbnail'] = thumbnail(first_image)
           manifest['sequences'] = [
             {
               '@id' => sequence_uri('normal'),
@@ -147,6 +153,22 @@ module IIIF
           ]
         end
       end
+    end
+
+    def thumbnail(image)
+      width = 80
+      height = 100
+      {
+        '@id' => image_uri(image.id, size: "#{width},#{height}"),
+        'service' => {
+          '@context' => 'http://iiif.io/api/image/2/context.json',
+          '@id' => image_uri(image.id),
+          'profile' => 'http://iiif.io/api/image/2/level1.json'
+        },
+        'format' => 'image/jpeg',
+        'width' => width,
+        'height' => height
+      }
     end
 
     def manifest_uri

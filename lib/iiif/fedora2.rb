@@ -39,6 +39,10 @@ module IIIF
         false
       end
 
+      def label
+        @pid
+      end
+
       def pages
         if @service
           # only one page; @pid is the image PID
