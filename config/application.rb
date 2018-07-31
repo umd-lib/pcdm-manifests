@@ -16,9 +16,6 @@ module PcdmManifests
          'Access-Control-Allow-Origin' => '*'
     }
 
-    config.solr_url = ENV['SOLR_URL'] || 'https://solrlocal:8984/solr/fedora4/'
-    config.fcrepo_url = ENV['FCREPO_URL'] || 'https://fcrepolocal/fcrepo/rest/'
-    config.iiif_image_url = ENV['IIIF_IMAGE_URL'] || 'https://iiiflocal/images/'
-    config.iiif_manifest_url = ENV['IIIF_MANIFEST_URL'] || 'https://iiiflocal/manifests/'
+    config.iiif = config_for(:iiif)
   end
 end

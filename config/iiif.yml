@@ -1,0 +1,32 @@
+# base URLs for services
+# should end in '/'
+development:
+    fcrepo:
+        fcrepo_url: https://fcrepolocal/fcrepo/rest/
+        solr_url: https://solrlocal:8984/solr/fedora4/
+        image_url: https://iiiflocal/images/
+        manifest_url: http://localhost:3000/manifests/
+    fedora2:
+        fedora2_url: http://fedoradev.lib.umd.edu/
+        image_url: https://iiifdev.lib.umd.edu/images/
+        manifest_url: http://localhost:3000/manifests/
+vagrant:
+    fcrepo:
+        fcrepo_url: https://fcrepolocal/fcrepo/rest/
+        solr_url: https://solrlocal:8984/solr/fedora4/
+        image_url: https://iiiflocal/images/
+        manifest_url: http://iiiflocal/manifests/
+    fedora2:
+        fedora2_url: http://fedoradev.lib.umd.edu/
+        image_url: https://iiifdev.lib.umd.edu/images/
+        manifest_url: http://iiiflocal/manifests/
+production:
+    fcrepo:
+        fcrepo_url: <%= ENV['FCREPO_URL'] %>
+        solr_url: <%= ENV['SOLR_URL'] %>
+        image_url: <%= ENV['IIIF_IMAGE_URL'] %>
+        manifest_url: <%= ENV['IIIF_MANIFEST_URL'] %>
+    fedora2:
+        fedora2_url: <%= ENV['FEDORA2_URL'] %>
+        image_url: <%= ENV['IIIF_IMAGE_URL'] %>
+        manifest_url: <%= ENV['IIIF_MANIFEST_URL'] %>

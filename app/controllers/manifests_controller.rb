@@ -1,25 +1,22 @@
+require 'errors'
+
 class ManifestsController < ApplicationController
-  include ManifestHelper
+  include Errors
 
   # Render the index page
   def index
     render :file => 'public/index.html'
   end
 
-  # GET /manifests/:id
+  # GET /manifests/:id/manifest
   def show
-    prefixed_id = params[:id]
     begin
-      verify_prefix(prefixed_id)
-      @doc = get_solr_doc(prefixed_id)
-      if is_manifest_level? @doc[:component]
-        prepare_for_render(@doc, params[:q])
-        render :show
-      elsif is_canvas_level? @doc[:component]
-        page_id = get_prefixed_id(get_path(@doc[:page_issue]))
-        redirect_to manifest_url(id: page_id, q: params[:q]), status: :see_other
+      if item.is_manifest_level?
+        render json: item.manifest
+      elsif item.is_canvas_level?
+        redirect_to_manifest item
       else
-        raise BadRequestError, "Resource #{prefixed_id} does not have a recognized manifest or canvas type"
+        raise BadRequestError, "Resource #{params[:id]} does not have a recognized manifest or canvas type"
       end
     rescue *HTTP_ERRORS => e
       render json: e.to_h, status: e.status
@@ -28,20 +25,42 @@ class ManifestsController < ApplicationController
 
   # GET /manifests/:id/list/:list_id
   def show_list
-    prefix, path = params[:id].split /:/
-    manifest_id = "#{prefix}:#{encode(path)}"
     begin
-      verify_prefix(manifest_id)
-      canvas_id = params[:list_id]
-      verify_prefix(canvas_id)
-      if params[:q]
-        render json: get_highlighted_hits(manifest_id, id_to_uri(canvas_id), params[:q])
+      if item.is_manifest_level?
+        if params[:q]
+          raise NotFoundError, "No annotation list available" unless item.methods.include? :search_hit_list
+          render json: item.search_hit_list(params[:list_id])
+        else
+          raise NotFoundError, "No annotation list available" unless item.methods.include? :textblock_list
+          # text block sc:painting annotations
+          render json: item.textblock_list(params[:list_id])
+        end
+      elsif item.is_canvas_level?
+        redirect_to_manifest item
       else
-        # text block sc:painting annotations
-        render json: get_textblock_list(manifest_id, id_to_uri(canvas_id))
+        raise BadRequestError, "Resource #{params[:id]} does not have a recognized manifest or canvas type"
       end
     rescue *HTTP_ERRORS => e
       render json: e.to_h, status: e.status
     end
+  end
+
+  private
+
+  def item
+    return @item if @item
+    prefix, path = params[:id].split(':', 2)
+    raise BadRequestError, "Manifest ID must be in the form prefix:local" unless prefix && path
+    begin
+      require "iiif/#{prefix}"
+      classname = "IIIF::#{prefix.capitalize}::Item".constantize
+      @item = classname.new(path, params[:q])
+    rescue LoadError => e
+      raise NotFoundError, "Unrecognized prefix '#{prefix}'"
+    end
+  end
+
+  def redirect_to_manifest(item)
+    redirect_to manifest_url(id: item.manifest_id, q: params[:q]), status: :see_other
   end
 end
