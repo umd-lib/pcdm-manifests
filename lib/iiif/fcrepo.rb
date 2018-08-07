@@ -102,6 +102,20 @@ module IIIF
               page.image = get_image(image_doc)
             end
           end
+
+          # NOTE: the more semantically correct solution to the problem of a
+          # missing image would be to return an empty images array and let the
+          # IIIF view handle displaying a placeholder. Unfortunately at this
+          # time Mirador does not support empty images arrays, so we have
+          # implemented the placeholder on the IIIF Presentation API side.
+          unless page.image
+            page.image = IIIF::Image.new.tap do |image|
+              image.uri = image_uri('static:unavailable', format: 'jpg')
+              image.id = 'static:unavailable'
+              image.width = 200
+              image.height = 200
+            end
+          end
         end
       end
 
