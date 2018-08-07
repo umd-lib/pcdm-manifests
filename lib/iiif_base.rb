@@ -10,6 +10,8 @@ module IIIF
   end
 
   class Item
+    DEFAULT_CANVAS_HEIGHT = 1200
+    DEFAULT_CANVAS_WIDTH = 1200
 
     def encode(str)
       ERB::Util.url_encode(str)
@@ -72,8 +74,8 @@ module IIIF
           '@id' => canvas_uri(page.id),
           '@type' => 'sc:Canvas',
           'label' => page.label,
-          'height' => image.height,
-          'width' => image.width,
+          'height' => image.height || DEFAULT_CANVAS_HEIGHT,
+          'width' => image.width || DEFAULT_CANVAS_WIDTH,
 
           'images' => [
             {
@@ -89,8 +91,8 @@ module IIIF
                   '@id' => image_uri(image.id),
                   'profile' => 'http://iiif.io/api/image/2/profiles/level2.json'
                 },
-                'height' => image.height,
-                'width' => image.width,
+                'height' => image.height || DEFAULT_CANVAS_HEIGHT,
+                'width' => image.width || DEFAULT_CANVAS_WIDTH,
               },
               'on' => canvas_uri(page.id)
             }
