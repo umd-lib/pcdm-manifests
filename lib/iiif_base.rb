@@ -223,7 +223,7 @@ module IIIF
         'on' => param[:target],
         'motivation' => param[:motivation]
       }.tap do |annotation|
-        annotation['resource'] = param[:body] if param[:body]
+        annotation['resource'] = [ param[:body] ] if param[:body]
       end
     end
 
