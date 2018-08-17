@@ -15,7 +15,7 @@ vagrant:
         fcrepo_url: https://fcrepolocal/fcrepo/rest/
         solr_url: https://solrlocal:8984/solr/fedora4/
         image_url: https://iiiflocal/images/
-        manifest_url: http://iiiflocal/manifests/
+        manifest_url: https://iiiflocal/manifests/
     fedora2:
         fedora2_url: http://fedoradev.lib.umd.edu/
         image_url: https://iiifdev.lib.umd.edu/images/
