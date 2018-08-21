@@ -67,10 +67,15 @@ module IIIF
         if @service
           # only one page; @pid is the image PID
           info = get_image_info(image_uri(get_formatted_id(@pid)))
+          label = if doc && doc.key?('displayTitle') && !doc['displayTitle'].nil?
+                    doc['displayTitle']
+                  else
+                    'Image'
+                  end
           [
             IIIF::Page.new.tap do |page|
               page.id = get_formatted_id(@pid)
-              page.label = 'Image'
+              page.label = label 
               page.image = IIIF::Image.new.tap do |image|
                 image.id = get_formatted_id(@pid)
                 image.width = info['width']
@@ -85,7 +90,11 @@ module IIIF
             mets: METS_NAMESPACE
           )
           fptrs.map do |fptr|
-            label = doc ? doc['displayLabel'] : fptr.xpath('../..').attribute('LABEL').value
+            label = if doc && doc.key?('displayTitle') && !doc['displayTitle'].nil?
+                      doc['displayTitle']
+                    else
+                      fptr.xpath('../..').attribute('LABEL').value
+                    end
             fileid = fptr.attribute('FILEID').value
             flocat = mets.at_xpath(
               '/mets:mets/mets:fileSec/mets:fileGrp/mets:file[@ID=$id]/mets:FLocat',
