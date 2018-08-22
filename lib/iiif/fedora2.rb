@@ -13,7 +13,7 @@ module IIIF
       def image_base_uri
         CONFIG['image_url']
       end
-
+      attr_reader :query
       def initialize(path, query)
         @pid, @service = path.split /_/, 2
         @query = query
@@ -48,11 +48,11 @@ module IIIF
       end
 
       def label
-        @pid
-      end
-
-      def query
-        @query
+        if doc && doc.key?('displayTitle') && !doc['displayTitle'].blank?
+          doc['displayTitle']
+        else
+          @pid
+        end
       end
 
       def is_manifest_level?
@@ -67,15 +67,11 @@ module IIIF
         if @service
           # only one page; @pid is the image PID
           info = get_image_info(image_uri(get_formatted_id(@pid)))
-          label = if doc && doc.key?('displayTitle') && !doc['displayTitle'].nil?
-                    doc['displayTitle']
-                  else
-                    'Image'
-                  end
+          canvas_label = label != @pid ? label : 'Image'
           [
             IIIF::Page.new.tap do |page|
               page.id = get_formatted_id(@pid)
-              page.label = label 
+              page.label = canvas_label
               page.image = IIIF::Image.new.tap do |image|
                 image.id = get_formatted_id(@pid)
                 image.width = info['width']
@@ -90,22 +86,18 @@ module IIIF
             mets: METS_NAMESPACE
           )
           fptrs.map do |fptr|
-            label = if doc && doc.key?('displayTitle') && !doc['displayTitle'].nil?
-                      doc['displayTitle']
-                    else
-                      fptr.xpath('../..').attribute('LABEL').value
-                    end
+            label = fptr.xpath('../..').attribute('LABEL').value
             fileid = fptr.attribute('FILEID').value
             flocat = mets.at_xpath(
               '/mets:mets/mets:fileSec/mets:fileGrp/mets:file[@ID=$id]/mets:FLocat',
               { mets: METS_NAMESPACE },
-              { id: fileid }
+              id: fileid
             )
             pid = flocat.attribute('href').value
 
             IIIF::Page.new.tap do |page|
               page.id = get_formatted_id(pid)
-              page.label = label
+              page.label = label.empty? ? pid : label
               page.image = IIIF::Image.new.tap do |image|
                 image.id = get_formatted_id(pid)
                 info = get_image_info(image_uri(image.id))
