@@ -13,7 +13,7 @@ module IIIF
       def image_base_uri
         CONFIG['image_url']
       end
-
+      attr_reader :query
       def initialize(path, query)
         @pid, @service = path.split /_/, 2
         @query = query
@@ -27,8 +27,32 @@ module IIIF
         CONFIG['manifest_url'] + PREFIX + ':' + @pid + '/'
       end
 
-      def query
-        @query
+      def doc
+        return @doc if @doc
+        solr_query = @service ? "hasPart:\"#{@pid}\"" : "pid:\"#{@pid}\""
+        # stuck on ruby 2.2 so no #dig :(
+        @doc =
+          begin
+            get_solr_doc(solr_query)['response']['docs']
+              .first.with_indifferent_access
+          rescue NoMethodError
+            nil
+          end
+        @doc
+      end
+
+      def mets
+        return @mets if @mets
+        @mets = Nokogiri::XML(get_mets_xml)
+        @mets
+      end
+
+      def label
+        if doc && doc.key?('displayTitle') && !doc['displayTitle'].blank?
+          doc['displayTitle']
+        else
+          @pid
+        end
       end
 
       def is_manifest_level?
@@ -39,18 +63,15 @@ module IIIF
         false
       end
 
-      def label
-        @pid
-      end
-
       def pages
         if @service
           # only one page; @pid is the image PID
           info = get_image_info(image_uri(get_formatted_id(@pid)))
+          canvas_label = label != @pid ? label : 'Image'
           [
             IIIF::Page.new.tap do |page|
               page.id = get_formatted_id(@pid)
-              page.label = 'Image'
+              page.label = canvas_label
               page.image = IIIF::Image.new.tap do |image|
                 image.id = get_formatted_id(@pid)
                 image.width = info['width']
@@ -60,24 +81,23 @@ module IIIF
           ]
         else
           # look up the METS relations in Fedora 2 to get a list of image PIDs
-          xml_doc = Nokogiri::XML(get_mets_xml)
-          fptrs = xml_doc.xpath(
+          fptrs = mets.xpath(
             '/mets:mets/mets:structMap[@TYPE="LOGICAL"]/mets:div[@ID="images"]//mets:div[@ID="DISPLAY"]/mets:fptr',
             mets: METS_NAMESPACE
           )
           fptrs.map do |fptr|
             label = fptr.xpath('../..').attribute('LABEL').value
             fileid = fptr.attribute('FILEID').value
-            flocat = xml_doc.at_xpath(
+            flocat = mets.at_xpath(
               '/mets:mets/mets:fileSec/mets:fileGrp/mets:file[@ID=$id]/mets:FLocat',
               { mets: METS_NAMESPACE },
-              { id: fileid }
+              id: fileid
             )
             pid = flocat.attribute('href').value
 
             IIIF::Page.new.tap do |page|
               page.id = get_formatted_id(pid)
-              page.label = label
+              page.label = label.empty? ? pid : label
               page.image = IIIF::Image.new.tap do |image|
                 image.id = get_formatted_id(pid)
                 info = get_image_info(image_uri(image.id))
@@ -89,12 +109,27 @@ module IIIF
         end
       end
 
+      def get_solr_doc(query = '*:*')
+        params = { q: query, wt: :json }
+        JSON.parse(http_get(CONFIG['solr_url'], params).body)
+      end
+
       def get_mets_xml
         http_get(CONFIG['fedora2_url'] + "/fedora/get/#{@pid}/umd-bdef:rels-mets/getRels/").body
       end
 
       def get_image_info(url)
         http_get(url + '/info.json').body
+      end
+
+      def metadata
+        return {} unless doc
+        # in the future we'll probably wanna get md from here..
+        # we'll leave it on ice for now.
+        # desc =  Nokogiri::XML(doc["umdm"])
+        doc['dmDate'].map do |date|
+          { 'label': 'Date', 'value': Time.parse(date).strftime('%Y-%m-%d') }
+        end
       end
     end
   end
