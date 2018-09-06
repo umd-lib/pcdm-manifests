@@ -80,6 +80,31 @@ module IIIF
             end
           ]
         else
+          # see if we have this item and its assets indexed in the fedora4 core
+          # if so, build a mapping from pids to image dimensions so we don't
+          # have to request the image info.json for each one from IIIF
+          params = {
+            q: "identifier:#{@pid.gsub(':', '\\:')}",
+            'pages.fq': 'rdf_type:pcdm\\:Object',
+            'pages.fl': 'id,display_title,page_number,identifier',
+            'pages.rows': 1000,
+            'images.fq': 'rdf_type:pcdmuse\\:IntermediateFile',
+            'images.rows': 1000,
+            wt: :json
+            }
+          pcdm_solr_doc = http_get(CONFIG['fcrepo_solr_url'] + 'pcdm', params).body
+
+          image_info_for = {}
+          if pcdm_solr_doc['response']['numFound'] > 0
+            pid_for_uri = pcdm_solr_doc['response']['docs'][0]['pages']['docs'].map do |page|
+              [ page['id'], page['identifier'][0] ]
+            end.to_h
+            images = pcdm_solr_doc['response']['docs'][0]['images']['docs']
+            image_info_for = images.map do |img|
+              [ pid_for_uri[img['pcdm_file_of']], { 'width' => img['image_width'], 'height' => img['image_height'] } ]
+            end.to_h
+          end
+
           # look up the METS relations in Fedora 2 to get a list of image PIDs
           fptrs = mets.xpath(
             '/mets:mets/mets:structMap[@TYPE="LOGICAL"]/mets:div[@ID="images"]//mets:div[@ID="DISPLAY"]/mets:fptr',
@@ -100,7 +125,7 @@ module IIIF
               page.label = label.empty? ? pid : label
               page.image = IIIF::Image.new.tap do |image|
                 image.id = get_formatted_id(pid)
-                info = get_image_info(image_uri(image.id))
+                info = image_info_for.has_key?(pid) ? image_info_for[pid] : get_image_info(image_uri(image.id))
                 image.width = info['width']
                 image.height = info['height']
               end
@@ -111,11 +136,11 @@ module IIIF
 
       def get_solr_doc(query = '*:*')
         params = { q: query, wt: :json }
-        JSON.parse(http_get(CONFIG['solr_url'], params).body)
+        JSON.parse(http_get(CONFIG['solr_url'] + 'select', params).body)
       end
 
       def get_mets_xml
-        http_get(CONFIG['fedora2_url'] + "/fedora/get/#{@pid}/umd-bdef:rels-mets/getRels/").body
+        http_get(CONFIG['fedora2_url'] + "fedora/get/#{@pid}/umd-bdef:rels-mets/getRels/").body
       end
 
       def get_image_info(url)
