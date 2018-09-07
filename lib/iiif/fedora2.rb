@@ -148,7 +148,7 @@ module IIIF
       end
 
       def metadata
-        return {} unless doc
+        return {} unless doc && doc.include?('dmDate')
         # in the future we'll probably wanna get md from here..
         # we'll leave it on ice for now.
         # desc =  Nokogiri::XML(doc["umdm"])
