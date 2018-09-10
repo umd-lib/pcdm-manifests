@@ -8,7 +8,8 @@ development:
         manifest_url: http://localhost:3000/manifests/
     fedora2:
         fedora2_url: http://fedoradev.lib.umd.edu/
-        solr_url: https://solrdev.lib.umd.edu/solr/fedora/select
+        solr_url: https://solrdev.lib.umd.edu/solr/fedora/
+        fcrepo_solr_url: https://solrdev.lib.umd.edu/solr/fedora4/
         image_url: https://iiifdev.lib.umd.edu/images/
         manifest_url: http://localhost:3000/manifests/
 vagrant:
@@ -19,7 +20,8 @@ vagrant:
         manifest_url: https://iiiflocal/manifests/
     fedora2:
         fedora2_url: http://fedoradev.lib.umd.edu/
-        solr_url: https://solrlocal:8984/solr/fedora/
+        solr_url: https://solrdev.lib.umd.edu/solr/fedora/
+        fcrepo_solr_url: https://solrdev.lib.umd.edu/solr/fedora4/
         image_url: https://iiifdev.lib.umd.edu/images/
         manifest_url: http://iiiflocal/manifests/
 production:
@@ -30,6 +32,7 @@ production:
         manifest_url: <%= ENV['IIIF_MANIFEST_URL'] %>
     fedora2:
         fedora2_url: <%= ENV['FEDORA2_URL'] %>
-        fedora2_url: <%= ENV['FEDORA2_SOLR_URL'] %>
+        solr_url: <%= ENV['FEDORA2_SOLR_URL'] %>
+        fcrepo_solr_url: <%= ENV['FCREPO_SOLR_URL'] %>
         image_url: <%= ENV['IIIF_IMAGE_URL'] %>
         manifest_url: <%= ENV['IIIF_MANIFEST_URL'] %>
