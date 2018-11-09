@@ -116,8 +116,8 @@ module IIIF
             fptrs.map do |fptr|
               label = if img['LABEL']
                         img['LABEL']
-                      elsif img['ORRDER']
-                        "Page #{img['ORDER']}"
+                      elsif img['ORDER'] && img['ORDER'].strip =~ /^\d+$/
+                        "Page #{img['ORDER'].strip}"
                       else
                         "Page #{order + 1}"
                       end
