@@ -7,7 +7,7 @@ development:
         image_url: https://iiiflocal/images/
         manifest_url: http://localhost:3000/manifests/
     fedora2:
-        fedora2_url: http://fedoradev.lib.umd.edu/
+        fedora2_url: https://fedoradev.lib.umd.edu/
         solr_url: https://solrdev.lib.umd.edu/solr/fedora/
         fcrepo_solr_url: https://solrdev.lib.umd.edu/solr/fedora4/
         image_url: https://iiifdev.lib.umd.edu/images/
@@ -19,7 +19,7 @@ vagrant:
         image_url: https://iiiflocal/images/
         manifest_url: https://iiiflocal/manifests/
     fedora2:
-        fedora2_url: http://fedoradev.lib.umd.edu/
+        fedora2_url: https://fedoradev.lib.umd.edu/
         solr_url: https://solrdev.lib.umd.edu/solr/fedora/
         fcrepo_solr_url: https://solrdev.lib.umd.edu/solr/fedora4/
         image_url: https://iiifdev.lib.umd.edu/images/
