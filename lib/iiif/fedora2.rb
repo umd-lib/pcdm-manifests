@@ -106,31 +106,43 @@ module IIIF
           end
 
           # look up the METS relations in Fedora 2 to get a list of image PIDs
-          fptrs = mets.xpath(
-            '/mets:mets/mets:structMap[@TYPE="LOGICAL"]/mets:div[@ID="images"]//mets:div[@ID="DISPLAY"]/mets:fptr',
-            mets: METS_NAMESPACE
-          )
-          fptrs.map do |fptr|
-            label = fptr.xpath('../..').attribute('LABEL').value
-            fileid = fptr.attribute('FILEID').value
-            flocat = mets.at_xpath(
-              '/mets:mets/mets:fileSec/mets:fileGrp/mets:file[@ID=$id]/mets:FLocat',
-              { mets: METS_NAMESPACE },
-              id: fileid
-            )
-            pid = flocat.attribute('href').value
+          imgs = mets.xpath(
+                        '/mets:mets/mets:structMap[@TYPE="LOGICAL"]/mets:div[@ID="images"]/*[//mets:div[@ID="DISPLAY"]/mets:fptr]',
+                        mets: METS_NAMESPACE
+                            )
 
-            IIIF::Page.new.tap do |page|
-              page.id = get_formatted_id(pid)
-              page.label = label.empty? ? pid : label
-              page.image = IIIF::Image.new.tap do |image|
-                image.id = get_formatted_id(pid)
-                info = image_info_for.has_key?(pid) ? image_info_for[pid] : get_image_info(image_uri(image.id))
-                image.width = info['width']
-                image.height = info['height']
+          imgs.each_with_index.map do |img, order|
+            fptrs = img.xpath('.//mets:div[@ID="DISPLAY"]/mets:fptr', mets: METS_NAMESPACE)
+            fptrs.map do |fptr|
+              label = if img['LABEL']
+                        img['LABEL']
+                      elsif img['ORDER'] && img['ORDER'].strip =~ /^\d+$/
+                        "Page #{img['ORDER'].strip}"
+                      else
+                        "Page #{order + 1}"
+                      end
+
+              fileid = fptr.attribute('FILEID').value
+              flocat = mets.at_xpath(
+                '/mets:mets/mets:fileSec/mets:fileGrp/mets:file[@ID=$id]/mets:FLocat',
+                { mets: METS_NAMESPACE },
+                id: fileid
+              )
+              pid = flocat.attribute('href').value
+
+              IIIF::Page.new.tap do |page|
+                page.id = get_formatted_id(pid)
+                page.label = label.empty? ? pid : label
+                page.image = IIIF::Image.new.tap do |image|
+                  image.id = get_formatted_id(pid)
+                  info = image_info_for.key?(pid) ? image_info_for[pid] : get_image_info(image_uri(image.id))
+                  image.width = info['width']
+                  image.height = info['height']
+                end
               end
             end
-          end
+          end.flatten
+        
         end
       end
 
