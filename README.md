@@ -6,7 +6,7 @@ repository.
 
 ## Quick Start
 
-Requires Ruby v2.2.4
+Requires Ruby v2.6.3
 
 ```
 git clone git@github.com:umd-lib/pcdm-manifests.git
