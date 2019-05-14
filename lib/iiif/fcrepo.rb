@@ -87,7 +87,7 @@ module IIIF
         if is_manifest_level?
           get_formatted_id(@uri)
         else
-          get_formatted_id(get_path(doc[:page_issue]))
+          get_formatted_id(get_path(doc[:containing_issue]))
         end
       end
 
