@@ -42,7 +42,7 @@ module IIIF
         path.gsub(':', '/')
       end
 
-      MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel']
+      MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel', 'archival record set']
       CANVAS_LEVEL = ['page']
 
       def initialize(path, query)
