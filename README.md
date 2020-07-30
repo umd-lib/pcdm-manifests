@@ -57,10 +57,35 @@ used by PCDM Manifests in production:
 |`FCREPO_URL`       |Base URL of the Fedora repository|
 |`FEDORA2_URL`      |Base URL of the Fedora 2 repository|
 |`FEDORA2_SOLR_URL` |URL of the Solr core to query for the Fedora 2 metadata|
+|`FCREPO_SOLR_URL`  |Should be set to the same as `SOLR_URL`|
 |`IIIF_IMAGE_URL`   |Base URL for the IIIF Image API service|
 |`IIIF_MANIFEST_URL`|Base URL for this service|
 
 See [config/iiif.yml](config/iiif.yml) for examples.
+
+## Docker
+
+This repository contains a [Dockerfile](Dockerfile) for building a deployable
+image of this application:
+
+```
+# build an image tagged with the current application version
+VERSION="$(rails app:version)" .
+docker build -t "pcdm-manifests:$VERSION" .
+
+# build an image tagged with the current application version, plus the current
+# git commit hash (useful for development builds)
+VERSION="$(rails app:version)-$(git rev-parse --short=8 HEAD)" .
+docker build -t "pcdm-manifests:$VERSION" .
+```
+
+To run the image, binding port 3000 to 3000 on localhost:
+
+```
+docker run -it --rm -p 3000:3000 "pcdm-manifests:$VERSION"
+```
+
+There should be a simple splash page at <http://localhost:3000/>
 
 ## License
 
