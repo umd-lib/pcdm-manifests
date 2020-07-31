@@ -1,15 +1,20 @@
+# frozen_string_literal: true
+
 require 'erb'
 
 module IIIF
+  # A single IIIF canvas
   class Page
     attr_accessor :id, :label, :image, :uri
   end
 
+  # A single IIIF image
   class Image
     attr_accessor :id, :width, :height, :uri
   end
 
-  class Item
+  # A resource with a manifest
+  class Item # rubocop:disable Metrics/ClassLength
     DEFAULT_CANVAS_HEIGHT = 1200
     DEFAULT_CANVAS_WIDTH = 1200
 
@@ -23,10 +28,10 @@ module IIIF
     def query
     end
 
-    def is_manifest_level?
+    def manifest_level?
     end
 
-    def is_canvas_level?
+    def canvas_level?
     end
 
     def pages
@@ -60,15 +65,15 @@ module IIIF
 
     def annotation_list(uri, annotations)
       {
-        "@context"  => "http://iiif.io/api/presentation/2/context.json",
-        "@id"       => uri,
-        "@type"     => "sc:AnnotationList",
-        "resources" => annotations
+        '@context' => 'http://iiif.io/api/presentation/2/context.json',
+        '@id' => uri,
+        '@type' => 'sc:AnnotationList',
+        'resources' => annotations
       }
     end
 
-    def canvases
-      pages.map do |page|
+    def canvases # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+      pages.map do |page| # rubocop:disable Metrics/BlockLength
         image = page.image
         {
           '@id' => canvas_uri(page.id),
@@ -92,7 +97,7 @@ module IIIF
                   'profile' => 'http://iiif.io/api/image/2/profiles/level2.json'
                 },
                 'height' => image.height || DEFAULT_CANVAS_HEIGHT,
-                'width' => image.width || DEFAULT_CANVAS_WIDTH,
+                'width' => image.width || DEFAULT_CANVAS_WIDTH
               },
               'on' => canvas_uri(page.id)
             }
@@ -103,35 +108,33 @@ module IIIF
       end
     end
 
-    def other_content(page)
+    def other_content(page) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       [].tap do |other|
         if methods.include?(:textblock_list)
-          other.push({
+          other.push(
             '@id' => list_uri(page.id),
             '@type' => 'sc:AnnotationList'
-          })
+          )
         end
         if query && methods.include?(:search_hit_list)
-          other.push({
+          other.push(
             '@id' => list_uri(page.id) + '?q=' + encode(query),
-            '@type' => 'sc:AnnotationList',
-          })
+            '@type' => 'sc:AnnotationList'
+          )
         end
       end
     end
 
-    def manifest
+    def manifest # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
       {
         '@context' => 'http://iiif.io/api/presentation/2/context.json',
         '@id' => manifest_uri,
         '@type' => 'sc:Manifest',
         'label' => label,
         'metadata' => metadata,
-        'sequences' => [],
-        'thumbnail' => {},
-        'logo' => {
-          '@id' => 'https://www.lib.umd.edu/images/wrapper/liblogo.png'
-        }
+        'sequences' => sequences(pages),
+        'thumbnail' => thumbnail(pages&.first&.image),
+        'logo' => logo
       }.tap do |manifest|
         manifest['navDate'] = nav_date if nav_date
         manifest['license'] = license if license
@@ -139,25 +142,34 @@ module IIIF
         manifest['description'] = description if description
         manifest['viewing_direction'] = viewing_direction if viewing_direction
         manifest['viewing_hint'] = viewing_hint if viewing_hint
-        if pages.length > 0
-          first_page = pages[0]
-          first_image = first_page.image
-
-          manifest['thumbnail'] = thumbnail(first_image)
-          manifest['sequences'] = [
-            {
-              '@id' => sequence_uri('normal'),
-              '@type' => 'sc:Sequence',
-              'label' => 'Current Page Order',
-              'startCanvas' => canvas_uri(first_page.id),
-              'canvases' => canvases
-            }
-          ]
-        end
       end
     end
 
-    def thumbnail(image)
+    def logo
+      { '@id' => 'https://www.lib.umd.edu/images/wrapper/liblogo.png' }
+    end
+
+    def sequences(pages)
+      return [] unless pages.length.positive?
+
+      [sequence('normal', 'Current Page Order', pages.first)]
+    end
+
+    def sequence(id, label, first_page)
+      return if first_page.nil?
+
+      {
+        '@id' => sequence_uri(id),
+        '@type' => 'sc:Sequence',
+        'label' => label,
+        'startCanvas' => canvas_uri(first_page.id),
+        'canvases' => canvases
+      }
+    end
+
+    def thumbnail(image) # rubocop:disable Metrics/MethodLength
+      return {} if image.nil?
+
       width = 80
       height = 100
       {
@@ -223,7 +235,7 @@ module IIIF
         'on' => param[:target],
         'motivation' => param[:motivation]
       }.tap do |annotation|
-        annotation['resource'] = [ param[:body] ] if param[:body]
+        annotation['resource'] = [param[:body]] if param[:body]
       end
     end
 
@@ -233,9 +245,9 @@ module IIIF
       rotation: 0,
       quality: 'default',
       format: 'jpg'
-    }
+    }.freeze
 
-    def image_uri(image_id, param={})
+    def image_uri(image_id, param = {})
       uri = "#{image_base_uri}#{image_id}"
       if param.empty?
         uri

@@ -1,17 +1,20 @@
+# frozen_string_literal: true
+
 require 'errors'
 require 'http_utils'
 require 'iiif_base'
 
 module IIIF
   module Fcrepo
-    class Item < IIIF::Item
+    # Manifest-able resource from fcrepo
+    class Item < IIIF::Item # rubocop:disable Metrics/ClassLength
       include Errors
       include HttpUtils
 
-      PREFIX = "fcrepo"
+      PREFIX = 'fcrepo'
       CONFIG = IIIF_CONFIG[PREFIX]
       SOLR_URL = CONFIG['solr_url']
-      PREFERRED_FORMATS = %w[image/tiff image/jpeg image/png image/gif]
+      PREFERRED_FORMATS = %w[image/tiff image/jpeg image/png image/gif].freeze
 
       def image_base_uri
         CONFIG['image_url']
@@ -36,15 +39,15 @@ module IIIF
 
       # reinsert the pairtree into the path
       def expand_path(path)
-        if m = path.match(/^([^:]+)::((..)(..)(..)(..).*)/)
+        if (m = path.match(/^([^:]+)::((..)(..)(..)(..).*)/))
           pairtree = m[3..6].join('/')
           path = "#{m[1]}/#{pairtree}/#{m[2]}"
         end
         path.gsub(':', '/')
       end
 
-      MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel', 'archival record set']
-      CANVAS_LEVEL = ['page']
+      MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel', 'archival record set'].freeze
+      CANVAS_LEVEL = ['page'].freeze
 
       def initialize(path, query)
         @path = path
@@ -57,9 +60,7 @@ module IIIF
         CONFIG['manifest_url'] + get_formatted_id(@path) + '/'
       end
 
-      def query
-        @query
-      end
+      attr_reader :query
 
       def component
         doc[:component]
@@ -69,24 +70,23 @@ module IIIF
         doc[:rdf_type]
       end
 
-      def is_manifest_level?
-        return false unless rdf_types
-        rdf_types.include?('pcdm:Object') && !rdf_types.include?('pcdm:Collection')
+      def manifest_level?
+        rdf_types&.include?('pcdm:Object') && !rdf_types.include?('pcdm:Collection')
       end
 
-      def is_canvas_level?
-        return false unless component
-        CANVAS_LEVEL.include? component.downcase
+      def canvas_level?
+        component && CANVAS_LEVEL.include?(component.downcase)
       end
 
-      def doc
+      def doc # rubocop:disable Metrics/MethodLength
         return @doc if @doc
 
         response = http_get(
-          SOLR_URL + "pcdm",
+          SOLR_URL + 'pcdm',
           q: "id:#{@uri.gsub(':', '\:')}",
           wt: 'json',
-          fl: 'id,rdf_type,component,containing_issue,display_title,date,issue_edition,issue_volume,issue_issue,rights,pages:[subquery],citation,display_date,image_height,image_width,mime_type',
+          fl: 'id,rdf_type,component,containing_issue,display_title,date,issue_edition,issue_volume,issue_issue,' \
+            'rights,pages:[subquery],citation,display_date,image_height,image_width,mime_type',
           rows: 1,
           'pages.q': '{!terms f=id v=$row.pcdm_members}',
           'pages.fq': 'component:Page',
@@ -98,13 +98,14 @@ module IIIF
           'pages.images.fq': 'mime_type:image/*',
           'pages.images.rows': 1000
         )
-        doc = response.body["response"]["docs"][0]
+        doc = response.body['response']['docs'][0]
         raise NotFoundError, "No Solr document with id #{@uri}" if doc.nil?
+
         @doc = doc.with_indifferent_access
       end
 
       def manifest_id
-        if is_manifest_level?
+        if manifest_level?
           get_formatted_id(@uri)
         else
           get_formatted_id(get_path(doc[:containing_issue]))
@@ -119,7 +120,7 @@ module IIIF
         nil
       end
 
-      def get_page(doc, page_doc)
+      def get_page(_doc, page_doc)
         IIIF::Page.new.tap do |page|
           page.uri = page_doc[:id]
           page.id = get_formatted_id(get_path(page.uri))
@@ -136,14 +137,7 @@ module IIIF
         # IIIF view handle displaying a placeholder. Unfortunately at this
         # time Mirador does not support empty images arrays, so we have
         # implemented the placeholder on the IIIF Presentation API side.
-        unless image_doc
-          return IIIF::Image.new.tap do |image|
-            image.uri = image_uri('static:unavailable', format: 'jpg')
-            image.id = 'static:unavailable'
-            image.width = 200
-            image.height = 200
-          end
-        end
+        return unavailable_image unless image_doc
 
         IIIF::Image.new.tap do |image|
           image.uri = image_doc[:id]
@@ -155,8 +149,17 @@ module IIIF
         end
       end
 
+      def unavailable_image
+        IIIF::Image.new.tap do |image|
+          image.uri = image_uri('static:unavailable', format: 'jpg')
+          image.id = 'static:unavailable'
+          image.width = 200
+          image.height = 200
+        end
+      end
+
       def pages
-        doc[:pages][:docs].map {|page_doc| get_page(doc, page_doc)}
+        doc[:pages][:docs].map { |page_doc| get_page(doc, page_doc) }
       end
 
       def nav_date
@@ -175,45 +178,45 @@ module IIIF
         doc[:display_title]
       end
 
-      def metadata
+      def metadata # rubocop:disable Metrics/AbcSize
         citation = doc[:citation] ? doc[:citation].join(' ') : nil
-        display_date = doc[:display_date] || (doc[:date].sub(/T.*/, '') if doc[:date])
+        display_date = doc[:display_date] || (doc[:date]&.sub(/T.*/, ''))
         [
-          {'label': 'Date', 'value': display_date},
-          {'label': 'Edition', 'value': doc[:issue_edition]},
-          {'label': 'Volume', 'value': doc[:issue_volume]},
-          {'label': 'Issue', 'value': doc[:issue_issue]},
-          {'label': 'Bibliographic Citation', 'value': citation}
-        ].reject {|item| item[:value].nil? }
+          { 'label': 'Date', 'value': display_date },
+          { 'label': 'Edition', 'value': doc[:issue_edition] },
+          { 'label': 'Volume', 'value': doc[:issue_volume] },
+          { 'label': 'Issue', 'value': doc[:issue_issue] },
+          { 'label': 'Bibliographic Citation', 'value': citation }
+        ].reject { |item| item[:value].nil? }
       end
 
-      def search_hit_list(page_id)
-        prefix, path = page_id.split /:/, 2
+      def search_hit_list(page_id) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        _, path = page_id.split(/:/, 2)
         page_uri = path_to_uri(path)
         solr_params = {
-          'fq'             => ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
-          'q'              => @query,
-          'wt'             => 'json',
-          'fl'             => '*',
-          'hl'             => 'true',
-          'hl.fl'          => 'extracted_text',
-          'hl.simple.pre'  => '<em>',
-          'hl.simple.post' => '</em>',
-          'hl.method'      => 'unified',
+          fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
+          q: @query,
+          wt: 'json',
+          fl: '*',
+          hl: 'true',
+          'hl.fl': 'extracted_text',
+          'hl.simple.pre': '<em>',
+          'hl.simple.post': '</em>',
+          'hl.method': 'unified'
         }
-        res = http_get(SOLR_URL + "select", solr_params)
+        res = http_get(SOLR_URL + 'select', solr_params)
         ocr_field = 'extracted_text'
         annotations = []
         results = res.body
-        highlight_pattern = /<em>([^<]*)<\/em>/
+        highlight_pattern = %r{<em>([^<]*)</em>}
         coord_pattern = /(\d+,\d+,\d+,\d+)/
         annotation_list_uri = list_uri(get_formatted_id(path)) + '?q=' + encode(@query)
         count = 0
 
         docs = results['response']['docs']
 
-        snippets = results["highlighting"] || []
-        snippets.select { |uri, fields| fields[ocr_field] }.each do |uri, fields|
+        snippets = results['highlighting'] || []
+        snippets.select { |_uri, fields| fields[ocr_field] }.each do |uri, fields|
           body = docs.select { |doc| doc['id'] == uri }.first
           fields[ocr_field].each do |text|
             text.scan highlight_pattern do |hit|
@@ -221,7 +224,7 @@ module IIIF
                 count += 1
                 annotations.push(
                   annotation(
-                    id: "#search-result-%03d" % count,
+                    id: format('#search-result-%03d', count),
                     type: 'umd:searchResult',
                     motivation: 'oa:highlighting',
                     target: specific_resource(
@@ -237,17 +240,17 @@ module IIIF
         annotation_list(annotation_list_uri, annotations)
       end
 
-      def textblock_list(page_id)
-        prefix, path = page_id.split /:/, 2
+      def textblock_list(page_id) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        _prefix, path = page_id.split(/:/, 2)
         page_uri = path_to_uri(path)
         solr_params = {
-          'fq' => ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
-          'wt' => 'json',
-          'q' => '*:*',
-          'fl' => '*',
-          'rows' => 100,
+          fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
+          wt: 'json',
+          q: '*:*',
+          fl: '*',
+          rows: 100
         }
-        res = http_get(SOLR_URL + "select", solr_params)
+        res = http_get(SOLR_URL + 'select', solr_params)
         results = res.body
         coord_tag_pattern = /\|(\d+,\d+,\d+,\d+)/
         annotation_list_uri = list_uri(get_formatted_id(path))
