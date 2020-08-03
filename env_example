@@ -1,4 +1,8 @@
-# Enviroment variables for the fcrepo-search webapp
+# Enviroment variables for the pcdm-manifests webapp
+
+# --- config/secrets.yml
+# Secret key used to verify signed cookies
+SECRET_KEY_BASE=
 
 # URL of the solr running in the fcrepo-vagrant
 SOLR_URL=https://solrlocal:8984/solr/fedora4/
