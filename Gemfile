@@ -36,3 +36,10 @@ group :development do
   gem 'spring'
   gem 'spring-watcher-listen', '~> 2.0.0'
 end
+
+group :test do
+  # Code analysis tools
+  gem 'rubocop', '~> 0.74.0', require: false
+  gem 'rubocop-rails', '~> 2.3.0', require: false
+  gem 'rubocop-checkstyle_formatter', '~> 0.2.0', require: false
+end
