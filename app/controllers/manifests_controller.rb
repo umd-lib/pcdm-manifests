@@ -11,10 +11,10 @@ class ManifestsController < ApplicationController
   # GET /manifests/:id/manifest
   def show
     begin
-      if item.is_manifest_level?
-        render json: item.manifest
-      elsif item.is_canvas_level?
+      if item.is_canvas_level?
         redirect_to_manifest item
+      elsif item.is_manifest_level?
+        render json: item.manifest
       else
         raise BadRequestError, "Resource #{params[:id]} does not have a recognized manifest or canvas type"
       end
@@ -26,7 +26,9 @@ class ManifestsController < ApplicationController
   # GET /manifests/:id/list/:list_id
   def show_list
     begin
-      if item.is_manifest_level?
+      if item.is_canvas_level?
+        redirect_to_manifest item
+      elsif item.is_manifest_level?
         if params[:q]
           raise NotFoundError, "No annotation list available" unless item.methods.include? :search_hit_list
           render json: item.search_hit_list(params[:list_id])
@@ -35,8 +37,6 @@ class ManifestsController < ApplicationController
           # text block sc:painting annotations
           render json: item.textblock_list(params[:list_id])
         end
-      elsif item.is_canvas_level?
-        redirect_to_manifest item
       else
         raise BadRequestError, "Resource #{params[:id]} does not have a recognized manifest or canvas type"
       end

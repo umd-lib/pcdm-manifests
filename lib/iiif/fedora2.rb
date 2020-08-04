@@ -7,7 +7,7 @@ module IIIF
       include HttpUtils
 
       PREFIX = 'fedora2'
-      CONFIG = Rails.configuration.iiif[PREFIX]
+      CONFIG = IIIF_CONFIG[PREFIX]
       METS_NAMESPACE = 'http://www.loc.gov/METS/'
 
       def image_base_uri

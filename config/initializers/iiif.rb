@@ -1,0 +1,1 @@
+IIIF_CONFIG = PcdmManifests::Application.config_for(:iiif).with_indifferent_access

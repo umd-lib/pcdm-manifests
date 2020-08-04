@@ -19,7 +19,5 @@ module PcdmManifests
     config.action_dispatch.default_headers = {
          'Access-Control-Allow-Origin' => '*'
     }
-
-    config.iiif = config_for(:iiif)
   end
 end
