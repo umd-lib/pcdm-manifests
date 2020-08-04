@@ -1,0 +1,51 @@
+require: rubocop-rails
+
+# Exclude auto-generated files
+AllCops:
+  Exclude:
+    - 'config.ru'
+    - 'Gemfile'
+    - 'Rakefile'
+    - 'bin/**/*'
+    - 'config/**/*'
+    - 'db/schema.rb'
+    - 'db/migrate/*'
+    - 'db/seeds.rb'
+    - '**/*.jbuilder'
+    - 'node_modules/**/*'
+
+# Increase max allowed line length
+Metrics/LineLength:
+  Max: 120
+  Exclude:
+    - 'test/**/*'
+
+Metrics/ClassLength:
+  Exclude:
+    - 'test/**/*'
+
+# The following configuration exclude checks that seem
+# silly, or conflict with the way Rails naturally does
+# things.
+Style/Documentation:
+  Exclude:
+    - 'app/controllers/*_controller.rb'
+    - 'app/helpers/*_helper.rb'
+    - 'test/**/*'
+
+Style/ClassAndModuleChildren:
+  Exclude:
+    - 'test/**/*'
+
+Layout/IndentationConsistency:
+  EnforcedStyle: indented_internal_methods
+
+Style/EmptyMethod:
+  EnforcedStyle: expanded
+
+Rails/UnknownEnv:
+  Environments:
+    - production
+    - development
+    - test
+    - vagrant
