@@ -105,10 +105,10 @@ module IIIF
       end
 
       def manifest_id
-        if manifest_level?
-          get_formatted_id(@uri)
-        else
+        if canvas_level?
           get_formatted_id(get_path(doc[:containing_issue]))
+        else
+          get_formatted_id(@uri)
         end
       end
 
