@@ -8,7 +8,7 @@ require "rails/test_unit/railtie"
 Bundler.require(*Rails.groups)
 
 module PcdmManifests
-  VERSION = '1.7.0-rc3'
+  VERSION = '1.7.0'
   class Application < Rails::Application
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers
