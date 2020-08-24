@@ -1,21 +1,26 @@
+# frozen_string_literal: true
+
 require 'http_utils'
 require 'iiif_base'
 
 module IIIF
   module Fedora2
-    class Item < IIIF::Item
+    # Fedora 2 resource
+    class Item < IIIF::Item # rubocop:disable Metrics/ClassLength
       include HttpUtils
 
       PREFIX = 'fedora2'
-      CONFIG = Rails.configuration.iiif[PREFIX]
+      CONFIG = IIIF_CONFIG[PREFIX]
       METS_NAMESPACE = 'http://www.loc.gov/METS/'
 
       def image_base_uri
         CONFIG['image_url']
       end
+
       attr_reader :query
+
       def initialize(path, query)
-        @pid, @service = path.split /_/, 2
+        @pid, @service = path.split(/_/, 2)
         @query = query
       end
 
@@ -29,6 +34,7 @@ module IIIF
 
       def doc
         return @doc if @doc
+
         solr_query = @service ? "hasPart:\"#{@pid}\"" : "pid:\"#{@pid}\""
         # stuck on ruby 2.2 so no #dig :(
         @doc =
@@ -38,32 +44,29 @@ module IIIF
           rescue NoMethodError
             nil
           end
-        @doc
       end
 
       def mets
-        return @mets if @mets
-        @mets = Nokogiri::XML(get_mets_xml)
-        @mets
+        @mets ||= Nokogiri::XML(mets_xml)
       end
 
       def label
-        if doc && doc.key?('displayTitle') && !doc['displayTitle'].blank?
+        if doc&.key?('displayTitle') && doc['displayTitle'].present?
           doc['displayTitle']
         else
           @pid
         end
       end
 
-      def is_manifest_level?
+      def manifest_level?
         true
       end
 
-      def is_canvas_level?
+      def canvas_level?
         false
       end
 
-      def pages
+      def pages # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
         if @service
           # only one page; @pid is the image PID
           info = get_image_info(image_uri(get_formatted_id(@pid)))
@@ -91,37 +94,30 @@ module IIIF
             'images.fq': 'rdf_type:pcdmuse\\:IntermediateFile',
             'images.rows': 1000,
             wt: :json
-            }
+          }
           pcdm_solr_doc = http_get(CONFIG['fcrepo_solr_url'] + 'pcdm', params).body
 
           image_info_for = {}
-          if pcdm_solr_doc['response']['numFound'] > 0
+          if pcdm_solr_doc['response']['numFound'].positive?
             pid_for_uri = pcdm_solr_doc['response']['docs'][0]['pages']['docs'].map do |page|
-              [ page['id'], page['identifier'][0] ]
+              [page['id'], page['identifier'][0]]
             end.to_h
             images = pcdm_solr_doc['response']['docs'][0]['images']['docs']
             image_info_for = images.map do |img|
-              [ pid_for_uri[img['pcdm_file_of']], { 'width' => img['image_width'], 'height' => img['image_height'] } ]
+              [pid_for_uri[img['pcdm_file_of']], { width: img['image_width'], height: img['image_height'] }]
             end.to_h
           end
 
           # look up the METS relations in Fedora 2 to get a list of image PIDs
           imgs = mets.xpath(
-                        '/mets:mets/mets:structMap[@TYPE="LOGICAL"]/mets:div[@ID="images"]/*[//mets:div[@ID="DISPLAY"]/mets:fptr]',
-                        mets: METS_NAMESPACE
-                            )
+            '/mets:mets/mets:structMap[@TYPE="LOGICAL"]/mets:div[@ID="images"]/*[//mets:div[@ID="DISPLAY"]/mets:fptr]',
+            mets: METS_NAMESPACE
+          )
 
           imgs.each_with_index.map do |img, order|
+            label = image_label_for img, order
             fptrs = img.xpath('.//mets:div[@ID="DISPLAY"]/mets:fptr', mets: METS_NAMESPACE)
             fptrs.map do |fptr|
-              label = if img['LABEL']
-                        img['LABEL']
-                      elsif img['ORDER'] && img['ORDER'].strip =~ /^\d+$/
-                        "Page #{img['ORDER'].strip}"
-                      else
-                        "Page #{order + 1}"
-                      end
-
               fileid = fptr.attribute('FILEID').value
               flocat = mets.at_xpath(
                 '/mets:mets/mets:fileSec/mets:fileGrp/mets:file[@ID=$id]/mets:FLocat',
@@ -142,7 +138,16 @@ module IIIF
               end
             end
           end.flatten
-        
+        end
+      end
+
+      def image_label_for(img, order)
+        if img['LABEL']
+          img['LABEL']
+        elsif img['ORDER'] && img['ORDER'].strip =~ /^\d+$/
+          "Page #{img['ORDER'].strip}"
+        else
+          "Page #{order + 1}"
         end
       end
 
@@ -151,7 +156,7 @@ module IIIF
         JSON.parse(http_get(CONFIG['solr_url'] + 'select', params).body)
       end
 
-      def get_mets_xml
+      def mets_xml
         http_get(CONFIG['fedora2_url'] + "fedora/get/#{@pid}/umd-bdef:rels-mets/getRels/").body
       end
 
@@ -160,12 +165,13 @@ module IIIF
       end
 
       def metadata
-        return {} unless doc && doc.include?('dmDate')
+        return {} unless doc&.include?('dmDate')
+
         # in the future we'll probably wanna get md from here..
         # we'll leave it on ice for now.
         # desc =  Nokogiri::XML(doc["umdm"])
         doc['dmDate'].map do |date|
-          { 'label': 'Date', 'value': Time.parse(date).strftime('%Y-%m-%d') }
+          { 'label': 'Date', 'value': Time.zone.parse(date).strftime('%Y-%m-%d') }
         end
       end
     end
