@@ -6,58 +6,103 @@ require 'iiif_base'
 
 module IIIF
   module Fcrepo
+    PREFIX = 'fcrepo'
+    CONFIG = IIIF_CONFIG.fetch(PREFIX, {}).with_indifferent_access
+    UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.freeze
+
+    # abbreviated path to a repository resource
+    class Path
+      include Errors
+
+      def fcrepo_uri
+        CONFIG.fetch(:fcrepo_url, '')
+      end
+
+      def self.from_uri(uri, base_uri: fcrepo_uri)
+        repo_path = uri[base_uri.length..uri.length]
+        # remove the pairtree from the path
+        new(repo_path.gsub('/', ':').gsub(/:(..):(..):(..):(..):\1\2\3\4/, '::\1\2\3\4'))
+      end
+
+      def initialize(path)
+        @path = path
+        # pass -1 to split to preserve empty segments at the end of the path
+        @segments = @path.split(':', -1)
+        @last_index = @segments.count - 1
+      end
+
+      # reinsert the pairtree into the path
+      def expanded
+        @segments.each_with_index.map do |segment, index|
+          # pass through non-empty segments
+          # ignore empty final segments
+          if segment.present? || index == @last_index
+            segment
+          else
+            # attempt to expand the abbreviation marker "::"
+            # using the next segment in the path
+            expand_segment(next_segment(index), index)
+          end
+        end.join('/')
+      rescue ArgumentError => e
+        raise BadRequestError, "Unable to parse identifier containing \"#{@path}\": #{e.message}"
+      end
+
+      def to_prefixed(expand: false)
+        path = expand ? expanded : @path
+        PREFIX + ':' + path.gsub('/', '%2F')
+      end
+
+      def to_uri(base_uri: fcrepo_uri)
+        base_uri + expanded
+      end
+
+      def to_s
+        @path
+      end
+
+      private
+
+        def next_segment(index)
+          @segments[index + 1]
+        end
+
+        def expand_segment(segment, index)
+          raise ArgumentError, 'Cannot end with abbreviation marker "::"' if index + 1 >= @last_index && segment == ''
+          raise ArgumentError, 'Can only abbreviate UUID segments' unless UUID_REGEX.match?(segment.to_s.downcase)
+
+          # scan the next segment 2 characters at a time
+          # and take the first 4 to create the pairtree
+          segment.scan(/../).take(4).join('/')
+        end
+    end
+
     # Manifest-able resource from fcrepo
     class Item < IIIF::Item # rubocop:disable Metrics/ClassLength
       include Errors
       include HttpUtils
 
       PREFIX = 'fcrepo'
-      CONFIG = IIIF_CONFIG[PREFIX]
-      SOLR_URL = CONFIG['solr_url']
+      CONFIG = IIIF_CONFIG.fetch(PREFIX, {}).with_indifferent_access
+      SOLR_URL = CONFIG.fetch('solr_url', '')
       PREFERRED_FORMATS = %w[image/tiff image/jpeg image/png image/gif].freeze
 
       def image_base_uri
-        CONFIG['image_url']
-      end
-
-      def get_formatted_id(path)
-        PREFIX + ':' + path.gsub('/', '%2F')
-      end
-
-      def get_path(uri)
-        compress_path(uri[CONFIG['fcrepo_url'].length..uri.length])
-      end
-
-      def path_to_uri(path)
-        CONFIG['fcrepo_url'] + expand_path(path)
-      end
-
-      # remove the pairtree from the path
-      def compress_path(path)
-        path.gsub('/', ':').gsub(/:(..):(..):(..):(..):\1\2\3\4/, '::\1\2\3\4')
-      end
-
-      # reinsert the pairtree into the path
-      def expand_path(path)
-        if (m = path.match(/^([^:]+)::((..)(..)(..)(..).*)/))
-          pairtree = m[3..6].join('/')
-          path = "#{m[1]}/#{pairtree}/#{m[2]}"
-        end
-        path.gsub(':', '/')
+        CONFIG[:image_url]
       end
 
       MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel', 'archival record set'].freeze
       CANVAS_LEVEL = ['page'].freeze
 
       def initialize(path, query)
-        @path = path
+        @path = Path.new(path)
         @query = query
-        @uri = path_to_uri(@path)
+        @uri = @path.to_uri
       end
 
       def base_uri
         # base URI of the manifest resources
-        CONFIG['manifest_url'] + get_formatted_id(@path) + '/'
+        CONFIG[:manifest_url] + @path.to_prefixed + '/'
       end
 
       attr_reader :query
@@ -123,7 +168,7 @@ module IIIF
       def get_page(_doc, page_doc)
         IIIF::Page.new.tap do |page|
           page.uri = page_doc[:id]
-          page.id = get_formatted_id(get_path(page.uri))
+          page.id = Path.from_uri(page.uri).to_prefixed
           page.label = "Page #{page_doc[:page_number]}"
           page.image = get_image(page_doc[:images])
         end
@@ -143,7 +188,7 @@ module IIIF
           image.uri = image_doc[:id]
           # re-expand the path for image IDs that are destined for Loris
           # since it currently cannot process the shorthand pcdm::... notation
-          image.id = get_formatted_id(expand_path(get_path(image.uri)))
+          image.id = Path.from_uri(image.uri).to_prefixed(expand: true)
           image.width = image_doc[:image_width]
           image.height = image_doc[:image_height]
         end
@@ -192,7 +237,7 @@ module IIIF
 
       def search_hit_list(page_id) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         _, path = page_id.split(/:/, 2)
-        page_uri = path_to_uri(path)
+        page_uri = Path.new(path).to_uri
         solr_params = {
           fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
           q: @query,
@@ -242,7 +287,7 @@ module IIIF
 
       def textblock_list(page_id) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         _prefix, path = page_id.split(/:/, 2)
-        page_uri = path_to_uri(path)
+        page_uri = Path.new(path).to_uri
         solr_params = {
           fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
           wt: 'json',

@@ -14,5 +14,7 @@ default: &default
         manifest_url: <%= ENV['IIIF_MANIFEST_URL'] %>
 development:
     <<: *default
+test:
+    <<: *default
 production:
     <<: *default
