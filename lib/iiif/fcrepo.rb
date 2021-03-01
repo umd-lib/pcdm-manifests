@@ -14,11 +14,8 @@ module IIIF
     class Path
       include Errors
 
-      def fcrepo_uri
-        CONFIG.fetch(:fcrepo_url, '')
-      end
-
-      def self.from_uri(uri, base_uri: fcrepo_uri)
+      def self.from_uri(uri, base_uri: nil)
+        base_uri ||= CONFIG.fetch(:fcrepo_url, '')
         repo_path = uri[base_uri.length..uri.length]
         # remove the pairtree from the path
         new(repo_path.gsub('/', ':').gsub(/:(..):(..):(..):(..):\1\2\3\4/, '::\1\2\3\4'))
@@ -53,7 +50,8 @@ module IIIF
         PREFIX + ':' + path.gsub('/', '%2F')
       end
 
-      def to_uri(base_uri: fcrepo_uri)
+      def to_uri(base_uri: nil)
+        base_uri ||= CONFIG.fetch(:fcrepo_url, '')
         base_uri + expanded
       end
 
@@ -151,9 +149,9 @@ module IIIF
 
       def manifest_id
         if canvas_level?
-          get_formatted_id(get_path(doc[:containing_issue]))
+          Path.from_uri(doc[:containing_issue]).to_prefixed
         else
-          get_formatted_id(@uri)
+          Path.from_uri(@uri).to_prefixed
         end
       end
 
@@ -236,8 +234,9 @@ module IIIF
       end
 
       def search_hit_list(page_id) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-        _, path = page_id.split(/:/, 2)
-        page_uri = Path.new(path).to_uri
+        _, path_string = page_id.split(/:/, 2)
+        path = Path.new(path_string)
+        page_uri = path.to_uri
         solr_params = {
           fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
           q: @query,
@@ -255,7 +254,7 @@ module IIIF
         results = res.body
         highlight_pattern = %r{<em>([^<]*)</em>}
         coord_pattern = /(\d+,\d+,\d+,\d+)/
-        annotation_list_uri = list_uri(get_formatted_id(path)) + '?q=' + encode(@query)
+        annotation_list_uri = list_uri(path.to_prefixed) + '?q=' + encode(@query)
         count = 0
 
         docs = results['response']['docs']
@@ -286,8 +285,9 @@ module IIIF
       end
 
       def textblock_list(page_id) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-        _prefix, path = page_id.split(/:/, 2)
-        page_uri = Path.new(path).to_uri
+        _prefix, path_string = page_id.split(/:/, 2)
+        path = Path.new(path_string)
+        page_uri = path.to_uri
         solr_params = {
           fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
           wt: 'json',
@@ -298,7 +298,7 @@ module IIIF
         res = http_get(SOLR_URL + 'select', solr_params)
         results = res.body
         coord_tag_pattern = /\|(\d+,\d+,\d+,\d+)/
-        annotation_list_uri = list_uri(get_formatted_id(path))
+        annotation_list_uri = list_uri(path.to_prefixed)
 
         docs = results['response']['docs']
         annotations = docs.map do |doc|
