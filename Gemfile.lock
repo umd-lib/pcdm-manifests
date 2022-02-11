@@ -81,7 +81,8 @@ GEM
     parallel (1.19.2)
     parser (2.7.1.4)
       ast (~> 2.4.1)
-    puma (3.12.6)
+    puma (4.3.11)
+      nio4r (~> 2.0)
     rack (2.2.3)
     rack-test (0.6.3)
       rack (>= 1.0)
@@ -166,7 +167,7 @@ DEPENDENCIES
   jbuilder (~> 2.5)
   listen (~> 3.0.5)
   nokogiri
-  puma (~> 3.12)
+  puma (~> 4.3)
   rails (~> 5.0.0, >= 5.0.0.1)
   rubocop (~> 0.74.0)
   rubocop-checkstyle_formatter (~> 0.2.0)
