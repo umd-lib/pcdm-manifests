@@ -1,4 +1,3 @@
-
 # Dockerfile for the generating pcdm-manifests Rails application Docker image
 #
 # To build:
@@ -7,7 +6,7 @@
 #
 # where <VERSION> is the Docker image version to create.
 
-FROM ruby:2.6.3
+FROM ruby:2.7.6
 
 # Create a user for the web app.
 RUN addgroup --gid 9999 app && \
@@ -29,7 +28,7 @@ ENV RAILS_ENV=production
 # are made.
 COPY --chown=app:app Gemfile Gemfile.lock /home/app/webapp/
 RUN cd /home/app/webapp && \
-    gem install bundler && \
+    gem install bundler:1.17.2 && \
     bundle install --deployment && \
     cd ..
 
