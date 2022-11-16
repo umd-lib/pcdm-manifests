@@ -129,11 +129,11 @@ module IIIF
           q: "id:#{@uri.gsub(':', '\:')}",
           wt: 'json',
           fl: 'id,rdf_type,component,containing_issue,display_title,date,issue_edition,issue_volume,issue_issue,' \
-            'rights,pages:[subquery],citation,display_date,image_height,image_width,mime_type',
+            'rights,pcdm_members,pages:[subquery],citation,display_date,image_height,image_width,mime_type',
           rows: 1,
           'pages.q': '{!terms f=id v=$row.pcdm_members}',
           'pages.fq': 'component:Page',
-          'pages.fl': 'id,display_title,page_number,images:[subquery]',
+          'pages.fl': 'id,display_title,page_number,pcdm_files,images:[subquery]',
           'pages.sort': 'page_number asc',
           'pages.rows': '1000',
           'pages.images.q': '{!terms f=id v=$row.pcdm_files}',
@@ -168,7 +168,7 @@ module IIIF
           page.uri = page_doc[:id]
           page.id = Path.from_uri(page.uri).to_prefixed
           page.label = "Page #{page_doc[:page_number]}"
-          page.image = get_image(page_doc[:images])
+          page.image = get_image(page_doc[:images][:docs])
         end
       end
 
