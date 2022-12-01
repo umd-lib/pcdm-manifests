@@ -6,73 +6,78 @@ require 'iiif_base'
 
 module IIIF
   module Fcrepo
-    PREFIX = 'fcrepo'
-    CONFIG = IIIF_CONFIG.fetch(PREFIX, {}).with_indifferent_access
-    UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.freeze
+    UUID_REGEX = /^\h{8}-\h{4}-\h{4}-\h{4}-\h{12}$/.freeze
 
-    # abbreviated path to a repository resource
+    # location of a repository resource
+    # can be in 4 forms:
+    # * uri: the fully qualified URI to the resource
+    # * path: the full path to the resource inside the repo, without the leading slash
+    # * prefixed: slashes in the full path replaced with colons, and "fcrepo:" prepended
+    # * abbreviated: prefixed form, but with any pairtree sequences replaced with a "::"
     class Path
       include Errors
 
       def self.from_uri(uri, base_uri: nil)
-        base_uri ||= CONFIG.fetch(:fcrepo_url, '')
-        repo_path = uri[base_uri.length..uri.length]
-        # remove the pairtree from the path
-        new(repo_path.gsub('/', ':').gsub(/:(..):(..):(..):(..):\1\2\3\4/, '::\1\2\3\4'))
+        base_uri ||= Item::CONFIG.fetch(:fcrepo_url, '')
+        repo_path = uri.delete_prefix(base_uri)
+        new(repo_path)
       end
 
-      def initialize(path)
-        @path = path
-        # pass -1 to split to preserve empty segments at the end of the path
-        @segments = @path.split(':', -1)
-        @last_index = @segments.count - 1
+      def self.from_prefixed(prefixed_path)
+        prefixed_path.delete_prefix(Item::PREFIX).gsub(':', '/')
       end
 
-      # reinsert the pairtree into the path
-      def expanded
-        @segments.each_with_index.map do |segment, index|
+      def self.from_abbreviated(abbreviated_path)
+        segments = abbreviated_path.delete_prefix(Item::PREFIX).split(':', -1)
+        last_index = segments.count - 1
+        new(segments.each_with_index.map do |segment, index|
           # pass through non-empty segments
           # ignore empty final segments
-          if segment.present? || index == @last_index
+          if segment.present? || index == last_index
             segment
           else
             # attempt to expand the abbreviation marker "::"
             # using the next segment in the path
-            expand_segment(next_segment(index), index)
+            next_segment = segments[index + 1]
+            raise ArgumentError, 'Cannot end with abbreviation marker "::"' if index + 1 >= last_index && next_segment == ''
+            raise ArgumentError, 'Can only abbreviate UUID segments' unless UUID_REGEX.match?(next_segment.to_s.downcase)
+            # scan the next segment 2 characters at a time
+            # and take the first 4 to create the pairtree
+            next_segment.scan(/../).take(4).join('/')
           end
-        end.join('/')
+        end.join('/'))
       rescue ArgumentError => e
-        raise BadRequestError, "Unable to parse identifier containing \"#{@path}\": #{e.message}"
+        raise BadRequestError, "Unable to parse identifier \"#{Item::PREFIX}#{abbreviated_path}\": #{e.message}"
       end
 
-      def to_prefixed(expand: false)
-        path = expand ? expanded : @path
-        PREFIX + ':' + path.gsub('/', '%2F')
+      def initialize(path)
+        @path = path.delete_prefix('/')
+        # pass -1 to split to preserve empty segments at the end of the path
+        @segments = @path.split('/', -1)
+      end
+
+      def to_string(prefix: '/', separator: '/')
+        prefix + @segments.join(separator)
+      end
+
+      def to_prefixed(abbreviate: true)
+        prefixed = to_string(prefix: Item::PREFIX, separator: ':')
+        # remove the pairtree from the path if abbreviated
+        abbreviate ? prefixed.gsub(/:(..):(..):(..):(..):\1\2\3\4/, '::\1\2\3\4') : prefixed
+      end
+
+      def to_abbreviated
+        to_prefixed(abbreviate: true)
       end
 
       def to_uri(base_uri: nil)
-        base_uri ||= CONFIG.fetch(:fcrepo_url, '')
-        base_uri + expanded
+        base_uri ||= Item::CONFIG.fetch(:fcrepo_url, '')
+        base_uri + @path
       end
 
       def to_s
         @path
       end
-
-      private
-
-        def next_segment(index)
-          @segments[index + 1]
-        end
-
-        def expand_segment(segment, index)
-          raise ArgumentError, 'Cannot end with abbreviation marker "::"' if index + 1 >= @last_index && segment == ''
-          raise ArgumentError, 'Can only abbreviate UUID segments' unless UUID_REGEX.match?(segment.to_s.downcase)
-
-          # scan the next segment 2 characters at a time
-          # and take the first 4 to create the pairtree
-          segment.scan(/../).take(4).join('/')
-        end
     end
 
     # Manifest-able resource from fcrepo
@@ -80,8 +85,8 @@ module IIIF
       include Errors
       include HttpUtils
 
-      PREFIX = 'fcrepo'
-      CONFIG = IIIF_CONFIG.fetch(PREFIX, {}).with_indifferent_access
+      PREFIX = 'fcrepo:'
+      CONFIG = IIIF_CONFIG.fetch(PREFIX.delete_suffix(':'), {}).with_indifferent_access
       SOLR_URL = CONFIG.fetch('solr_url', '')
       PREFERRED_FORMATS = %w[image/tiff image/jpeg image/png image/gif].freeze
 
@@ -92,8 +97,8 @@ module IIIF
       MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel', 'archival record set'].freeze
       CANVAS_LEVEL = ['page'].freeze
 
-      def initialize(path, query)
-        @path = Path.new(path)
+      def initialize(local_id, query)
+        @path = Path.from_abbreviated(local_id)
         @query = query
         @uri = @path.to_uri
       end
@@ -166,9 +171,9 @@ module IIIF
       def get_page(_doc, page_doc)
         IIIF::Page.new.tap do |page|
           page.uri = page_doc[:id]
-          page.id = Path.from_uri(page.uri).to_prefixed
+          page.id = Path.from_uri(page.uri).to_abbreviated
           page.label = "Page #{page_doc[:page_number]}"
-          page.image = get_image(page_doc[:images][:docs])
+          page.image = get_image(page_doc[:images])
         end
       end
 
@@ -184,9 +189,9 @@ module IIIF
 
         IIIF::Image.new.tap do |image|
           image.uri = image_doc[:id]
-          # re-expand the path for image IDs that are destined for Loris
+          # re-expand the path for image IDs that are destined for the image server
           # since it currently cannot process the shorthand pcdm::... notation
-          image.id = Path.from_uri(image.uri).to_prefixed(expand: true)
+          image.id = Path.from_uri(image.uri).to_prefixed(abbreviate: false)
           image.width = image_doc[:image_width]
           image.height = image_doc[:image_height]
         end
