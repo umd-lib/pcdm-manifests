@@ -173,8 +173,26 @@ module IIIF
           page.uri = page_doc[:id]
           page.id = Path.from_uri(page.uri).to_abbreviated
           page.label = "Page #{page_doc[:page_number]}"
-          page.image = get_image(page_doc[:images])
+          page.image = get_image(get_subquery_docs(page_doc[:images]))
         end
+      end
+
+      # in Solr 6, subqueries return structures like this:
+      # "images": [
+      #   { "field1": "...", "field2": "..." },
+      #   { "field1": "...", "field2": "..." }
+      # ]
+      # whereas in Solr 7+, they return structures like this:
+      # "images": {
+      #   "docs": [
+      #     { "field1": "...", "field2": "..." },
+      #     { "field1": "...", "field2": "..." }
+      #   ]
+      # }
+      def get_subquery_docs(subquery_field)
+        return subquery_field[:docs] if subquery_field.respond_to? :key?
+
+        subquery_field
       end
 
       def get_image(images)
@@ -207,7 +225,7 @@ module IIIF
       end
 
       def pages
-        doc[:pages][:docs].map { |page_doc| get_page(doc, page_doc) }
+        get_subquery_docs(doc[:pages]).map { |page_doc| get_page(doc, page_doc) }
       end
 
       def nav_date
