@@ -44,13 +44,13 @@ class ManifestsController < ApplicationController
     def item
       return @item if @item
 
-      prefix, path = params[:id].split(':', 2)
-      raise BadRequestError, 'Manifest ID must be in the form prefix:local' unless prefix && path
+      prefix, local_id = params[:id].split(':', 2)
+      raise BadRequestError, 'Manifest ID must be in the form prefix:local' unless prefix && local_id
 
       begin
         require "iiif/#{prefix}"
         classname = "IIIF::#{prefix.capitalize}::Item".constantize
-        @item = classname.new(path, params[:q])
+        @item = classname.new(local_id, params[:q])
       rescue LoadError
         raise NotFoundError, "Unrecognized prefix '#{prefix}'"
       end
