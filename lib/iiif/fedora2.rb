@@ -69,7 +69,11 @@ module IIIF
       def pages # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
         if @service
           # only one page; @pid is the image PID
-          info = get_image_info(image_uri(get_formatted_id(@pid)))
+          begin
+            info = get_image_info(image_uri(get_formatted_id(@pid)))
+          rescue *HTTP_ERRORS
+            return unavailable_image
+          end
           canvas_label = label != @pid ? label : 'Image'
           [
             IIIF::Page.new.tap do |page|
@@ -129,11 +133,15 @@ module IIIF
               IIIF::Page.new.tap do |page|
                 page.id = get_formatted_id(pid)
                 page.label = label.empty? ? pid : label
-                page.image = IIIF::Image.new.tap do |image|
-                  image.id = get_formatted_id(pid)
-                  info = image_info_for.key?(pid) ? image_info_for[pid] : get_image_info(image_uri(image.id))
-                  image.width = info['width']
-                  image.height = info['height']
+                begin
+                  page.image = IIIF::Image.new.tap do |image|
+                    image.id = get_formatted_id(pid)
+                    info = image_info_for.key?(pid) ? image_info_for[pid] : get_image_info(image_uri(image.id))
+                    image.width = info['width']
+                    image.height = info['height']
+                  end
+                rescue *HTTP_ERRORS
+                  page.image = unavailable_image
                 end
               end
             end
