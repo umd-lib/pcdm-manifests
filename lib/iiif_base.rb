@@ -256,5 +256,14 @@ module IIIF
         uri + "/#{p[:region]}/#{p[:size]}/#{p[:rotation]}/#{p[:quality]}.#{p[:format]}"
       end
     end
+
+    def unavailable_image
+      IIIF::Image.new.tap do |image|
+        image.uri = image_uri('static:unavailable', format: 'jpg')
+        image.id = 'static:unavailable'
+        image.width = 200
+        image.height = 200
+      end
+    end
   end
 end

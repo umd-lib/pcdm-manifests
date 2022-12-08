@@ -22,6 +22,7 @@ module IIIF
       def initialize(path, query)
         @pid, @service = path.split(/_/, 2)
         @query = query
+        @image_info_for = {}
       end
 
       def get_formatted_id(pid)
@@ -69,19 +70,8 @@ module IIIF
       def pages # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
         if @service
           # only one page; @pid is the image PID
-          info = get_image_info(image_uri(get_formatted_id(@pid)))
           canvas_label = label != @pid ? label : 'Image'
-          [
-            IIIF::Page.new.tap do |page|
-              page.id = get_formatted_id(@pid)
-              page.label = canvas_label
-              page.image = IIIF::Image.new.tap do |image|
-                image.id = get_formatted_id(@pid)
-                image.width = info['width']
-                image.height = info['height']
-              end
-            end
-          ]
+          [ get_page(@pid, canvas_label) ]
         else
           # see if we have this item and its assets indexed in the fedora4 core
           # if so, build a mapping from pids to image dimensions so we don't
@@ -97,13 +87,12 @@ module IIIF
           }
           pcdm_solr_doc = http_get(CONFIG['fcrepo_solr_url'] + 'pcdm', params).body
 
-          image_info_for = {}
           if pcdm_solr_doc['response']['numFound'].positive?
             pid_for_uri = pcdm_solr_doc['response']['docs'][0]['pages']['docs'].map do |page|
               [page['id'], page['identifier'][0]]
             end.to_h
             images = pcdm_solr_doc['response']['docs'][0]['images']['docs']
-            image_info_for = images.map do |img|
+            @image_info_for = images.map do |img|
               [pid_for_uri[img['pcdm_file_of']], { width: img['image_width'], height: img['image_height'] }]
             end.to_h
           end
@@ -125,17 +114,7 @@ module IIIF
                 id: fileid
               )
               pid = flocat.attribute('href').value
-
-              IIIF::Page.new.tap do |page|
-                page.id = get_formatted_id(pid)
-                page.label = label.empty? ? pid : label
-                page.image = IIIF::Image.new.tap do |image|
-                  image.id = get_formatted_id(pid)
-                  info = image_info_for.key?(pid) ? image_info_for[pid] : get_image_info(image_uri(image.id))
-                  image.width = info['width']
-                  image.height = info['height']
-                end
-              end
+              get_page(pid, label)
             end
           end.flatten
         end
@@ -160,8 +139,30 @@ module IIIF
         http_get(CONFIG['fedora2_url'] + "fedora/get/#{@pid}/umd-bdef:rels-mets/getRels/").body
       end
 
-      def get_image_info(url)
-        http_get(url + '/info.json').body
+      def get_page(pid, label)
+        IIIF::Page.new.tap do |page|
+          page.id = get_formatted_id(pid)
+          page.label = label.empty? ? pid : label
+          page.image = get_image(pid)
+        end
+      end
+
+      def get_image_info(pid)
+        @image_info_for[pid] ||= http_get(image_uri(pid) + '/info.json').body
+      end
+
+      def get_image(pid)
+        image_id = get_formatted_id(pid)
+        info = get_image_info(image_id)
+        return unavailable_image unless info.present?
+
+        IIIF::Image.new.tap do |image|
+          image.id = image_id
+          image.width = info['width']
+          image.height = info['height']
+        end
+      rescue *HTTP_ERRORS
+        unavailable_image
       end
 
       def metadata
