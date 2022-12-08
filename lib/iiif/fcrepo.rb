@@ -215,15 +215,6 @@ module IIIF
         end
       end
 
-      def unavailable_image
-        IIIF::Image.new.tap do |image|
-          image.uri = image_uri('static:unavailable', format: 'jpg')
-          image.id = 'static:unavailable'
-          image.width = 200
-          image.height = 200
-        end
-      end
-
       def pages
         get_subquery_docs(doc[:pages]).map { |page_doc| get_page(doc, page_doc) }
       end
