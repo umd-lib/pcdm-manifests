@@ -147,13 +147,15 @@ module IIIF
         end
       end
 
-      def get_image_info(url)
-        http_get(url + '/info.json').body
+      def get_image_info(pid)
+        @image_info_for[pid] ||= http_get(image_uri(pid) + '/info.json').body
       end
 
       def get_image(pid)
         image_id = get_formatted_id(pid)
-        info = @image_info_for.key?(pid) ? @image_info_for[pid] : get_image_info(image_uri(image_id))
+        info = get_image_info(image_id)
+        return unavailable_image unless info.present?
+
         IIIF::Image.new.tap do |image|
           image.id = image_id
           image.width = info['width']
