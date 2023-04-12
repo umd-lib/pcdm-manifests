@@ -300,8 +300,9 @@ module IIIF
 
       def textblock_list(page_id) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         _prefix, path_string = page_id.split(/:/, 2)
-        path = Path.new(path_string)
+        path = Path.from_abbreviated(path_string)
         page_uri = path.to_uri
+        Rails.logger.debug("Fetching annotations with source #{page_uri}")
         solr_params = {
           fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
           wt: 'json',
@@ -315,6 +316,7 @@ module IIIF
         annotation_list_uri = list_uri(path.to_prefixed)
 
         docs = results['response']['docs']
+        Rails.logger.debug("Found #{docs.count} annotations with source #{page_uri}")
         annotations = docs.map do |doc|
           annotation(
             id: '#' + doc['resource_selector'][0],
