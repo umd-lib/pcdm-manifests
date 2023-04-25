@@ -249,8 +249,9 @@ module IIIF
 
       def search_hit_list(page_id) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         _, path_string = page_id.split(/:/, 2)
-        path = Path.new(path_string)
+        path = Path.from_abbreviated(path_string)
         page_uri = path.to_uri
+        Rails.logger.debug("Fetching hit highlights with source #{page_uri}")
         solr_params = {
           fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
           q: @query,
@@ -295,6 +296,7 @@ module IIIF
             end
           end
         end
+        Rails.logger.debug("Found #{annotations.count} hit highlights with source #{page_uri}")
         annotation_list(annotation_list_uri, annotations)
       end
 
