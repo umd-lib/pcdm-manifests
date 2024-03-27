@@ -1,14 +1,14 @@
 # pcdm-manifests
 
-Implementation of the [IIIF Presentation API](http://iiif.io/api/presentation/2.1/)
-that generates IIIF Manifests from [PCDM](https://pcdm.org/) objects in a Fedora 
-repository.
+Implementation of the [IIIF Presentation
+API](http://iiif.io/api/presentation/2.1/) that generates IIIF Manifests from
+[PCDM](https://pcdm.org/) objects in a Fedora repository.
 
 ## Quick Start
 
-Requires Ruby v2.6.3
+Requires Ruby v3.0.6
 
-```
+```zsh
 git clone git@github.com:umd-lib/pcdm-manifests.git
 cd pcdm-manifests
 
@@ -17,29 +17,33 @@ bundle install
 rails server
 ```
 
-JSON manifests of an issue can be obtained by making a HTTP get request in the following format.
+JSON manifests of an issue can be obtained by making an HTTP GET request in the
+following format.
 
-```
+```zsh
 curl http://localhost:3000/manifests/IIIF_ID/manifest
 ```
 
-The general structure of the `IIIF_ID` is `prefix:id`. The exact format of the `id` varies by handler.
+The general structure of the `IIIF_ID` is `prefix:id`. The exact format of the
+`id` varies by handler.
 
 ## Handlers
 
 ### fcrepo
 
 * **Prefix:** `fcrepo`
-* **ID:** The URL_encoded repository path to the resource (part of the PCDM resource URI after the Fedora base URI). There is also a shorthand that uses `::` to indicate the presence of a 4-element pairtree before a UUID.
+* **ID:** The URL_encoded repository path to the resource (part of the PCDM
+  resource URI after the Fedora base URI). There is also a shorthand that uses
+  `::` to indicate the presence of a 4-element pairtree before a UUID.
 
 #### Example
 
 |                   |Value|
 |-------------------|-----|
-|**Fedora URI**     |https://fcrepolocal/fcrepo/rest/pcdm/ab/b4/b3/04/abb4b304-5e96-478f-8abb-8c5aafd42223|
-|**Fedora Base URI**|https://fcrepolocal/fcrepo/rest/|
+|**Fedora URI**     |<https://fcrepolocal/fcrepo/rest/pcdm/ab/b4/b3/04/abb4b304-5e96-478f-8abb-8c5aafd42223>|
+|**Fedora Base URI**|<https://fcrepolocal/fcrepo/rest/>|
 |**IIIF ID**        |fcrepo:pcdm%2Fab%2Fb4%2Fb3%2F04%2Fabb4b304-5e96-478f-8abb-8c5aafd42223<br>*OR*<br>fcrepo:pcdm::abb4b304-5e96-478f-8abb-8c5aafd42223|
-|**Manifest URI**   |http://localhost:3000/manifests/fcrepo:ab%2Fb4%2Fb3%2F04%2Fabb4b304-5e96-478f-8abb-8c5aafd42223/manifest<br>*OR*<br>http://localhost:3000/manifests/fcrepo:pcdm::abb4b304-5e96-478f-8abb-8c5aafd42223/manifest|
+|**Manifest URI**   |<http://localhost:3000/manifests/fcrepo:ab%2Fb4%2Fb3%2F04%2Fabb4b304-5e96-478f-8abb-8c5aafd42223/manifest><br>*OR*<br><http://localhost:3000/manifests/fcrepo:pcdm::abb4b304-5e96-478f-8abb-8c5aafd42223/manifest>|
 
 ### fedora2
 
@@ -48,8 +52,8 @@ The general structure of the `IIIF_ID` is `prefix:id`. The exact format of the `
 
 ## Configuration
 
-The following environment variables are used to configure the services
-used by PCDM Manifests in production:
+The following environment variables are used to configure the services used by
+PCDM Manifests in production:
 
 |Variable           |Purpose|
 |-------------------|-------|
@@ -68,7 +72,7 @@ See [config/iiif.yml](config/iiif.yml) for examples.
 This repository contains a [Dockerfile](Dockerfile) for building a deployable
 image of this application:
 
-```
+```zsh
 # build an image tagged with the current application version
 VERSION="$(rails app:version)" .
 docker build -t "pcdm-manifests:$VERSION" .
@@ -79,15 +83,15 @@ VERSION="$(rails app:version)-$(git rev-parse --short=8 HEAD)" .
 docker build -t "pcdm-manifests:$VERSION" .
 ```
 
-To run the image, binding port 3000 to 3000 on localhost:
+To run the image, bind port 3000 to 3000 on localhost:
 
-```
-docker run -it --rm -p 3000:3000 "pcdm-manifests:$VERSION"
+```zsh
+docker run -it --rm -p 3000:3000 -e RAILS_ENV='development' "pcdm-manifests:$VERSION"
 ```
 
 There should be a simple splash page at <http://localhost:3000/>
 
 ## License
 
-See the [LICENSE](LICENSE.md) file for license rights and limitations (Apache 2.0).
-
+See the [LICENSE](LICENSE.md) file for license rights and limitations (Apache
+2.0).
