@@ -6,7 +6,7 @@ require 'iiif_base'
 
 module IIIF
   module Fcrepo
-    UUID_REGEX = /^\h{8}-\h{4}-\h{4}-\h{4}-\h{12}$/.freeze
+    UUID_REGEX = /^\h{8}-\h{4}-\h{4}-\h{4}-\h{12}$/
 
     # location of a repository resource
     # can be in 4 forms:
@@ -27,7 +27,7 @@ module IIIF
         prefixed_path.delete_prefix(Item::PREFIX).gsub(':', '/')
       end
 
-      def self.from_abbreviated(abbreviated_path)
+      def self.from_abbreviated(abbreviated_path) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         segments = abbreviated_path.delete_prefix(Item::PREFIX).split(':', -1)
         last_index = segments.count - 1
         new(segments.each_with_index.map do |segment, index|
@@ -39,8 +39,15 @@ module IIIF
             # attempt to expand the abbreviation marker "::"
             # using the next segment in the path
             next_segment = segments[index + 1]
-            raise ArgumentError, 'Cannot end with abbreviation marker "::"' if index + 1 >= last_index && next_segment == ''
-            raise ArgumentError, 'Can only abbreviate UUID segments' unless UUID_REGEX.match?(next_segment.to_s.downcase)
+            if index + 1 >= last_index && next_segment == ''
+              raise ArgumentError,
+                    'Cannot end with abbreviation marker "::"'
+            end
+            unless UUID_REGEX.match?(next_segment.to_s.downcase)
+              raise ArgumentError,
+                    'Can only abbreviate UUID segments'
+            end
+
             # scan the next segment 2 characters at a time
             # and take the first 4 to create the pairtree
             next_segment.scan(/../).take(4).join('/')
@@ -97,7 +104,7 @@ module IIIF
       MANIFEST_LEVEL = ['issue', 'letter', 'image', 'reel', 'archival record set'].freeze
       CANVAS_LEVEL = ['page'].freeze
 
-      def initialize(local_id, query)
+      def initialize(local_id, query) # rubocop:disable Lint/MissingSuper
         @path = Path.from_abbreviated(local_id)
         @query = query
         @uri = @path.to_uri
@@ -105,7 +112,7 @@ module IIIF
 
       def base_uri
         # base URI of the manifest resources
-        CONFIG[:manifest_url] + @path.to_prefixed + '/'
+        "#{CONFIG[:manifest_url]}#{@path.to_prefixed}/"
       end
 
       attr_reader :query
@@ -130,7 +137,7 @@ module IIIF
         return @doc if @doc
 
         response = http_get(
-          SOLR_URL + 'pcdm',
+          "#{SOLR_URL}pcdm",
           q: "id:#{@uri.gsub(':', '\:')}",
           wt: 'json',
           fl: 'id,rdf_type,component,containing_issue,display_title,date,issue_edition,issue_volume,issue_issue,' \
@@ -161,7 +168,7 @@ module IIIF
       end
 
       def get_preferred_image(images)
-        images_by_type = Hash[images.map { |doc| [doc[:mime_type], doc] }]
+        images_by_type = images.index_by { |doc| doc[:mime_type] }
         PREFERRED_FORMATS.each do |mime_type|
           return images_by_type[mime_type] if images_by_type.key? mime_type
         end
@@ -237,7 +244,7 @@ module IIIF
 
       def metadata # rubocop:disable Metrics/AbcSize
         citation = doc[:citation] ? doc[:citation].join(' ') : nil
-        display_date = doc[:display_date] || (doc[:date]&.sub(/T.*/, ''))
+        display_date = doc[:display_date] || doc[:date]&.sub(/T.*/, '')
         [
           { 'label': 'Date', 'value': display_date },
           { 'label': 'Edition', 'value': doc[:issue_edition] },
@@ -263,13 +270,13 @@ module IIIF
           'hl.simple.post': '</em>',
           'hl.method': 'unified'
         }
-        res = http_get(SOLR_URL + 'select', solr_params)
+        res = http_get("#{SOLR_URL}select", solr_params)
         ocr_field = 'extracted_text'
         annotations = []
         results = res.body
         highlight_pattern = %r{<em>([^<]*)</em>}
         coord_pattern = /(\d+,\d+,\d+,\d+)/
-        annotation_list_uri = list_uri(path.to_prefixed) + '?q=' + encode(@query)
+        annotation_list_uri = "#{list_uri(path.to_prefixed)}?q=#{encode(@query)}"
         count = 0
 
         docs = results['response']['docs']
@@ -312,7 +319,7 @@ module IIIF
           fl: '*',
           rows: 100
         }
-        res = http_get(SOLR_URL + 'select', solr_params)
+        res = http_get("#{SOLR_URL}select", solr_params)
         results = res.body
         coord_tag_pattern = /\|(\d+,\d+,\d+,\d+)/
         annotation_list_uri = list_uri(path.to_prefixed)
@@ -321,7 +328,7 @@ module IIIF
         Rails.logger.debug("Found #{docs.count} annotations with source #{page_uri}")
         annotations = docs.map do |doc|
           annotation(
-            id: '#' + doc['resource_selector'][0],
+            id: "##{doc['resource_selector'][0]}",
             type: 'umd:articleSegment',
             motivation: 'sc:painting',
             body: text_body(

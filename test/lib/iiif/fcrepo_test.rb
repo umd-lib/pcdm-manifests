@@ -11,6 +11,7 @@ module IIIF
       fcrepo_url: 'http://localhost:8080/rest/'
     }.with_indifferent_access.freeze
   end
+
   class FcrepoTest < ActiveSupport::TestCase
     test 'simple path' do
       path = IIIF::Fcrepo::Path.new('a:b:c')

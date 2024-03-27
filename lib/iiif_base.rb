@@ -108,7 +108,7 @@ module IIIF
       end
     end
 
-    def other_content(page) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    def other_content(page) # rubocop:disable Metrics/MethodLength
       [].tap do |other|
         if methods.include?(:textblock_list)
           other.push(
@@ -118,14 +118,14 @@ module IIIF
         end
         if query && methods.include?(:search_hit_list)
           other.push(
-            '@id' => list_uri(page.id) + '?q=' + encode(query),
+            '@id' => "#{list_uri(page.id)}?q=#{encode(query)}",
             '@type' => 'sc:AnnotationList'
           )
         end
       end
     end
 
-    def manifest # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+    def manifest # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       {
         '@context' => 'http://iiif.io/api/presentation/2/context.json',
         '@id' => manifest_uri,
@@ -186,23 +186,23 @@ module IIIF
     end
 
     def manifest_uri
-      base_uri + 'manifest'
+      "#{base_uri}manifest"
     end
 
     def canvas_uri(page_id)
-      base_uri + 'canvas/' + page_id
+      "#{base_uri}canvas/#{page_id}"
     end
 
     def annotation_uri(doc_id)
-      base_uri + 'annotation/' + doc_id
+      "#{base_uri}annotation/#{doc_id}"
     end
 
     def list_uri(page_id)
-      base_uri + 'list/' + page_id
+      "#{base_uri}list/#{page_id}"
     end
 
     def sequence_uri(label)
-      base_uri + 'sequence/' + label
+      "#{base_uri}sequence/#{label}"
     end
 
     def fragment_selector(value)

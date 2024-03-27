@@ -6,7 +6,14 @@
 #
 # where <VERSION> is the Docker image version to create.
 
-FROM ruby:2.7.6
+FROM ruby:3.0.6-slim
+
+# Install apt based dependencies required to run Rails as
+# well as RubyGems. As the Ruby image itself is based on a
+# Debian image, we use apt-get ≥to install those.
+RUN apt-get update && \
+    apt-get install -y build-essential && \
+    apt-get clean
 
 # Create a user for the web app.
 RUN addgroup --gid 9999 app && \
@@ -28,7 +35,7 @@ ENV RAILS_ENV=production
 # are made.
 COPY --chown=app:app Gemfile Gemfile.lock /home/app/webapp/
 RUN cd /home/app/webapp && \
-    gem install bundler:1.17.2 && \
+    gem install bundler:2.5.7 && \
     bundle install --deployment && \
     cd ..
 
