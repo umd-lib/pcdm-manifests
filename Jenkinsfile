@@ -139,14 +139,14 @@ pipeline {
           recordIssues(tools: [ruboCop(reportEncoding: 'UTF-8')], qualityGates: [[threshold: 1, type: 'TOTAL', criticality: 'UNSTABLE']])
 
           // Collect coverage reports
-          publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: false,
-                        keepAll: true,
-                        reportDir: 'coverage/rcov',
-                        reportFiles: 'index.html',
-                        reportName: "RCov Report"
-                      ])
+        //   publishHTML([
+        //                 allowMissing: false,
+        //                 alwaysLinkToLastBuild: false,
+        //                 keepAll: true,
+        //                 reportDir: 'coverage/rcov',
+        //                 reportFiles: 'index.html',
+        //                 reportName: "RCov Report"
+        //               ])
         }
       }
     }
