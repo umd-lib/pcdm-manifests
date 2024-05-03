@@ -10,7 +10,7 @@ class ManifestsController < ApplicationController
   end
 
   # GET /manifests/:id/manifest
-  def show # rubocop:disable Metrics/AbcSize
+  def show
     if item.canvas_level?
       redirect_to_manifest item
     elsif item.manifest_level?
