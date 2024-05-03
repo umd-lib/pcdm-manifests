@@ -1,0 +1,29 @@
+# Dockerfile for the generating pcdm-manifests Rails application Docker image
+#
+# To build:
+#
+# docker build -t docker.lib.umd.edu/pcdm-manifests:<VERSION> -f Dockerfile .
+#
+# where <VERSION> is the Docker image version to create.
+
+FROM ruby:3.0.6-slim
+
+# Install apt based dependencies required to run Rails as
+# well as RubyGems. As the Ruby image itself is based on a
+# Debian image, we use apt-get ≥to install those.
+RUN apt-get update && \
+    apt-get install -y build-essential && \
+    apt-get clean
+
+# Copy in the Gemfile and Gemfile.lock, and install the gems
+# This makes builds where the Gemfile/Gemfile.lock file hasn't
+# changed faster by having the correct gems already downloaded
+# and cached.
+COPY Gemfile* /tmp/
+
+# Run bundler to install the gems
+WORKDIR /tmp
+RUN gem install bundler:2.5.7
+RUN bundle install --without production
+
+WORKDIR /
