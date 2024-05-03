@@ -44,5 +44,5 @@ group :test do
   gem 'rubocop', '= 1.14.0', require: false
   gem 'rubocop-rails', '= 2.10.1', require: false
   gem 'rubocop-checkstyle_formatter', require: false
-  gem 'minitest-reporters' ~> '1.6'
+  gem 'minitest-reporters', '~> 1.6'
 end
