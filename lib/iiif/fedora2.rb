@@ -19,18 +19,18 @@ module IIIF
 
       attr_reader :query
 
-      def initialize(path, query)
+      def initialize(path, query) # rubocop:disable Lint/MissingSuper
         @pid, @service = path.split(/_/, 2)
         @query = query
         @image_info_for = {}
       end
 
       def get_formatted_id(pid)
-        PREFIX + ':' + pid
+        "#{PREFIX}:#{pid}"
       end
 
       def base_uri
-        CONFIG['manifest_url'] + PREFIX + ':' + @pid + '/'
+        "#{CONFIG['manifest_url']}#{PREFIX}:#{@pid}/"
       end
 
       def doc
@@ -67,11 +67,11 @@ module IIIF
         false
       end
 
-      def pages # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+      def pages # rubocop:disable Metrics/MethodLength, Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         if @service
           # only one page; @pid is the image PID
           canvas_label = label != @pid ? label : 'Image'
-          [ get_page(@pid, canvas_label) ]
+          [get_page(@pid, canvas_label)]
         else
           # see if we have this item and its assets indexed in the fedora4 core
           # if so, build a mapping from pids to image dimensions so we don't
@@ -85,7 +85,7 @@ module IIIF
             'images.rows': 1000,
             wt: :json
           }
-          pcdm_solr_doc = http_get(CONFIG['fcrepo_solr_url'] + 'pcdm', params).body
+          pcdm_solr_doc = http_get("#{CONFIG['fcrepo_solr_url']}pcdm", params).body
 
           if pcdm_solr_doc['response']['numFound'].positive?
             pid_for_uri = pcdm_solr_doc['response']['docs'][0]['pages']['docs'].map do |page|
@@ -132,7 +132,7 @@ module IIIF
 
       def get_solr_doc(query = '*:*')
         params = { q: query, wt: :json }
-        JSON.parse(http_get(CONFIG['solr_url'] + 'select', params).body)
+        JSON.parse(http_get("#{CONFIG['solr_url']}select", params).body)
       end
 
       def mets_xml
@@ -148,13 +148,13 @@ module IIIF
       end
 
       def get_image_info(pid)
-        @image_info_for[pid] ||= http_get(image_uri(pid) + '/info.json').body
+        @image_info_for[pid] ||= http_get("#{image_uri(pid)}/info.json").body
       end
 
       def get_image(pid)
         image_id = get_formatted_id(pid)
         info = get_image_info(image_id)
-        return unavailable_image unless info.present?
+        return unavailable_image if info.blank?
 
         IIIF::Image.new.tap do |image|
           image.id = image_id
