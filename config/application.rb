@@ -20,7 +20,7 @@ require "rails/test_unit/railtie"
 Bundler.require(*Rails.groups)
 
 module PcdmManifests
-  VERSION = '2.0.0-rc1'
+  VERSION = '2.0.0'
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 5.0
