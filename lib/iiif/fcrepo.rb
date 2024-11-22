@@ -117,42 +117,22 @@ module IIIF
 
       attr_reader :query
 
-      def component
-        doc[:component]
-      end
-
       def rdf_types
-        doc[:rdf_type]
+        model_field('rdf_type__curies')
       end
 
       def manifest_level?
-        rdf_types&.include?('pcdm:Object') && !rdf_types.include?('pcdm:Collection')
+        doc[:is_top_level]
       end
 
       def canvas_level?
-        component && CANVAS_LEVEL.include?(component.downcase)
+        !doc[:is_top_level]
       end
 
-      def doc # rubocop:disable Metrics/MethodLength
+      def doc
         return @doc if @doc
 
-        response = http_get(
-          "#{SOLR_URL}pcdm",
-          q: "id:#{@uri.gsub(':', '\:')}",
-          wt: 'json',
-          fl: 'id,rdf_type,component,containing_issue,display_title,date,issue_edition,issue_volume,issue_issue,' \
-            'rights,pcdm_members,pages:[subquery],citation,display_date,image_height,image_width,mime_type',
-          rows: 1,
-          'pages.q': '{!terms f=id v=$row.pcdm_members}',
-          'pages.fq': 'component:Page',
-          'pages.fl': 'id,display_title,page_number,pcdm_files,images:[subquery]',
-          'pages.sort': 'page_number asc',
-          'pages.rows': '1000',
-          'pages.images.q': '{!terms f=id v=$row.pcdm_files}',
-          'pages.images.fl': 'id,pcdm_file_of,image_height,image_width,mime_type,display_title,rdf_type',
-          'pages.images.fq': 'mime_type:image/*',
-          'pages.images.rows': 1000
-        )
+        response = http_get("#{SOLR_URL}select", q: "id:#{@uri.gsub(':', '\:')}", wt: 'json')
         doc = response.body['response']['docs'][0]
         raise NotFoundError, "No Solr document with id #{@uri}" if doc.nil?
 
@@ -161,14 +141,14 @@ module IIIF
 
       def manifest_id
         if canvas_level?
-          Path.from_uri(doc[:containing_issue]).to_prefixed
+          Path.from_uri(doc[:page__member_of__uri]).to_prefixed
         else
           Path.from_uri(@uri).to_prefixed
         end
       end
 
-      def get_preferred_image(images)
-        images_by_type = images.index_by { |doc| doc[:mime_type] }
+      def get_preferred_image(image_docs)
+        images_by_type = image_docs.index_by { |doc| doc[:file__mime_type__txt] }
         PREFERRED_FORMATS.each do |mime_type|
           return images_by_type[mime_type] if images_by_type.key? mime_type
         end
@@ -179,8 +159,8 @@ module IIIF
         IIIF::Page.new.tap do |page|
           page.uri = page_doc[:id]
           page.id = Path.from_uri(page.uri).to_abbreviated
-          page.label = "Page #{page_doc[:page_number]}"
-          page.image = get_image(get_subquery_docs(page_doc[:images]))
+          page.label = page_doc[:page__title__txt]
+          page.image = get_image(page_doc[:page__has_file])
         end
       end
 
@@ -223,34 +203,35 @@ module IIIF
       end
 
       def pages
-        get_subquery_docs(doc[:pages]).map { |page_doc| get_page(doc, page_doc) }
+        page_docs = doc[:page_uri__sequence].map do |uri|
+          model_field('has_member').select { |member| member[:id] == uri }.first
+        end
+        page_docs.map { |page_doc| get_page(doc, page_doc) }
       end
 
       def nav_date
-        doc[:date]
+        model_field('date__dt')
       end
 
       def license
-        doc[:rights].is_a?(Array) ? doc[:rights][0] : doc[:rights]
+        model_field('rights__same_as__uris').first
       end
 
       def attribution
-        doc[:attribution]
+        model_field('terms_of_use__value__txt')
       end
 
       def label
-        doc[:display_title]
+        model_field('title__txt')
       end
 
-      def metadata # rubocop:disable Metrics/AbcSize
-        citation = doc[:citation] ? doc[:citation].join(' ') : nil
-        display_date = doc[:display_date] || doc[:date]&.sub(/T.*/, '')
+      def metadata
         [
-          { 'label': 'Date', 'value': display_date },
+          { 'label': 'Date', 'value': model_field('date__edtf') },
           { 'label': 'Edition', 'value': doc[:issue_edition] },
           { 'label': 'Volume', 'value': doc[:issue_volume] },
           { 'label': 'Issue', 'value': doc[:issue_issue] },
-          { 'label': 'Bibliographic Citation', 'value': citation }
+          { 'label': 'Bibliographic Citation', 'value': model_field('bibliographic_citation__txt') }
         ].reject { |item| item[:value].nil? }
       end
 
@@ -342,6 +323,16 @@ module IIIF
         end
         annotation_list(annotation_list_uri, annotations)
       end
+
+      private
+
+        def model_prefix
+          doc[:content_model_prefix__str]
+        end
+
+        def model_field(field)
+          doc[model_prefix + field]
+        end
     end
   end
 end

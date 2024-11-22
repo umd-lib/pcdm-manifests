@@ -125,7 +125,7 @@ module IIIF
       end
     end
 
-    def manifest # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+    def manifest # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
       {
         '@context' => 'http://iiif.io/api/presentation/2/context.json',
         '@id' => manifest_uri,
@@ -173,12 +173,8 @@ module IIIF
       width = 80
       height = 100
       {
-        '@id' => image_uri(image.id, size: "#{width},#{height}"),
-        'service' => {
-          '@context' => 'http://iiif.io/api/image/2/context.json',
-          '@id' => image_uri(image.id),
-          'profile' => 'http://iiif.io/api/image/2/level1.json'
-        },
+        '@id' => image_uri(image.id, size: "#{width},"),
+        'service' => image_service(image_uri(image.id)),
         'format' => 'image/jpeg',
         'width' => width,
         'height' => height
