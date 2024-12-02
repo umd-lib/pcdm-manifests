@@ -25,3 +25,5 @@ config/pcdm2manifest.yml
 
 # Ignore environment variables
 /.env
+
+/vendor/bundle
