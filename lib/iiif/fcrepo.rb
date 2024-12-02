@@ -112,7 +112,7 @@ module IIIF
 
       def base_uri
         # base URI of the manifest resources
-        "#{CONFIG[:manifest_url]}#{@path.to_prefixed}/"
+        "#{CONFIG[:manifest_url]}#{@path.to_prefixed(abbreviate: false)}/"
       end
 
       attr_reader :query
@@ -141,9 +141,9 @@ module IIIF
 
       def manifest_id
         if canvas_level?
-          Path.from_uri(doc[:page__member_of__uri]).to_prefixed
+          Path.from_uri(doc[:page__member_of__uri]).to_prefixed(abbreviate: false)
         else
-          Path.from_uri(@uri).to_prefixed
+          Path.from_uri(@uri).to_prefixed(abbreviate: false)
         end
       end
 
@@ -158,7 +158,7 @@ module IIIF
       def get_page(_doc, page_doc)
         IIIF::Page.new.tap do |page|
           page.uri = page_doc[:id]
-          page.id = Path.from_uri(page.uri).to_abbreviated
+          page.id = Path.from_uri(page.uri).to_prefixed(abbreviate: false)
           page.label = page_doc[:page__title__txt]
           page.image = get_image(page_doc[:page__has_file])
         end
