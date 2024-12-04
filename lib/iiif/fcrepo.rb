@@ -7,6 +7,9 @@ require 'iiif_base'
 module IIIF
   module Fcrepo
     UUID_REGEX = /^\h{8}-\h{4}-\h{4}-\h{4}-\h{12}$/
+    OCR_FIELDS = %w[extracted_text__dps_txt extracted_text__txt].freeze
+    HIGHLIGHT_PATTERN = %r{<em>([^<]*)</em>}
+    COORD_PATTERN = /(\S+)\|(\S+)/
 
     # location of a repository resource
     # can be in 4 forms:
@@ -240,50 +243,17 @@ module IIIF
         path = Path.from_abbreviated(path_string)
         page_uri = path.to_uri
         Rails.logger.debug("Fetching hit highlights with source #{page_uri}")
-        solr_params = {
-          fq: ['rdf_type:oa\:Annotation', "annotation_source:#{page_uri.gsub(':', '\:')}"],
-          q: @query,
-          wt: 'json',
-          fl: '*',
-          hl: 'true',
-          'hl.fl': 'extracted_text',
-          'hl.simple.pre': '<em>',
-          'hl.simple.post': '</em>',
-          'hl.method': 'unified'
-        }
-        res = http_get("#{SOLR_URL}select", solr_params)
-        ocr_field = 'extracted_text'
-        annotations = []
-        results = res.body
-        highlight_pattern = %r{<em>([^<]*)</em>}
-        coord_pattern = /(\d+,\d+,\d+,\d+)/
+        results = http_get("#{SOLR_URL}select", highlight_search_params).body
         annotation_list_uri = "#{list_uri(path.to_prefixed)}?q=#{encode(@query)}"
-        count = 0
 
         docs = results['response']['docs']
-
-        snippets = results['highlighting'] || []
-        snippets.select { |_uri, fields| fields[ocr_field] }.each do |uri, fields|
-          body = docs.select { |doc| doc['id'] == uri }.first
-          fields[ocr_field].each do |text|
-            text.scan highlight_pattern do |hit|
-              hit[0].scan coord_pattern do |coords|
-                count += 1
-                annotations.push(
-                  annotation(
-                    id: format('#search-result-%03d', count),
-                    type: 'umd:searchResult',
-                    motivation: 'oa:highlighting',
-                    target: specific_resource(
-                      full: body['annotation_source'][0],
-                      selector: fragment_selector("xywh=#{coords[0]}")
-                    )
-                  )
-                )
-              end
-            end
-          end
-        end
+        body = docs.select { |doc| doc['id'] == @uri }.first
+        page_sequence = body['page_uri__sequence']
+        annotations = get_ocr_annotations(
+          page_uri: page_uri,
+          page_index: page_sequence.index(page_uri),
+          snippets: results['highlighting'] || []
+        )
         Rails.logger.debug("Found #{annotations.count} hit highlights with source #{page_uri}")
         annotation_list(annotation_list_uri, annotations)
       end
@@ -325,6 +295,66 @@ module IIIF
       end
 
       private
+
+        def highlight_search_params # rubocop:disable Metrics/MethodLength
+          {
+            fq: ["id:#{@uri.gsub(':', '\:')}"],
+            q: OCR_FIELDS.map { |field| "#{field}:#{@query}" }.join(' OR '),
+            wt: 'json',
+            fl: '*',
+            hl: 'true',
+            'hl.fl': OCR_FIELDS.join(','),
+            'hl.simple.pre': '<em>',
+            'hl.simple.post': '</em>',
+            'hl.method': 'unified'
+          }
+        end
+
+        def get_ocr_annotations(page_uri:, page_index:, snippets:) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+          [].tap do |annotations|
+            count = 0
+            OCR_FIELDS.each do |ocr_field|
+              snippets.select { |_uri, fields| fields[ocr_field] }.each do |_uri, fields|
+                fields[ocr_field].each do |text|
+                  text.scan HIGHLIGHT_PATTERN do |hit|
+                    # NOTE: need the [0] subscript since `scan()` with capture groups returns an iterator of arrays
+                    # rather than single string values
+                    # ALSO NOTE: if there are multiword matches, each word gets highlighted individually; if we wanted
+                    # to change this, we would need to collapse the values and coordinates in the scan for `COORD_PATTERN`
+                    # into a single annotation for each hit
+                    hit[0].scan COORD_PATTERN do |value, tag_string|
+                      tags = Rack::Utils.parse_nested_query(tag_string)
+                      if tags['n'].to_i == page_index
+                        count += 1
+                        annotations.push(
+                          hit_highlight(
+                            page_uri: page_uri,
+                            value: value,
+                            xywh: tags['xywh'],
+                            id: format('#search-result-%03d', count)
+                          )
+                        )
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+
+        def hit_highlight(page_uri:, value:, xywh:, id:)
+          annotation(
+            id: id,
+            type: 'umd:searchResult',
+            motivation: 'oa:highlighting',
+            target: specific_resource(
+              full: page_uri,
+              selector: fragment_selector("xywh=#{xywh}")
+            ),
+            body: text_body(text: value)
+          )
+        end
 
         def model_prefix
           doc[:content_model_prefix__str]

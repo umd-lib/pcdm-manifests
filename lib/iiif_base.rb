@@ -142,14 +142,15 @@ module IIIF
       }
     end
 
-    def other_content(page) # rubocop:disable Metrics/MethodLength
+    def other_content(page)
       [].tap do |other|
-        if methods.include?(:textblock_list)
-          other.push(
-            '@id' => list_uri(page.id),
-            '@type' => 'sc:AnnotationList'
-          )
-        end
+        # XXX: temporarily disabled
+        # if methods.include?(:textblock_list)
+        #   other.push(
+        #     '@id' => list_uri(page.id),
+        #     '@type' => 'sc:AnnotationList'
+        #   )
+        # end
         if query && methods.include?(:search_hit_list)
           other.push(
             '@id' => "#{list_uri(page.id)}?q=#{encode(query)}",
