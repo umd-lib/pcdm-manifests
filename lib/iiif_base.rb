@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'http_utils'
 require 'erb'
 
 module IIIF
@@ -72,40 +73,73 @@ module IIIF
       }
     end
 
-    def canvases # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-      pages.map do |page| # rubocop:disable Metrics/BlockLength
-        image = page.image
-        {
-          '@id' => canvas_uri(page.id),
-          '@type' => 'sc:Canvas',
-          'label' => page.label,
-          'height' => image.height || DEFAULT_CANVAS_HEIGHT,
-          'width' => image.width || DEFAULT_CANVAS_WIDTH,
+    def canvas(page) # rubocop:disable Metrics/MethodLength
+      annotation = image_annotation(page)
+      {
+        '@id' => canvas_uri(page.id),
+        '@type' => 'sc:Canvas',
+        'label' => page.label,
+        'height' => annotation.dig('resource', 'height') || DEFAULT_CANVAS_HEIGHT,
+        'width' => annotation.dig('resource', 'width') || DEFAULT_CANVAS_WIDTH,
+        'images' => annotation ? [annotation] : [],
+        'thumbnail' => thumbnail(page.image),
+        'otherContent' => other_content(page)
+      }
+    end
 
-          'images' => [
-            {
-              '@id' => annotation_uri(image.id),
-              '@type' => 'oa:Annotation',
-              'motivation' => 'sc:painting',
-              'resource' => {
-                '@id' => image_uri(image.id),
-                '@type' => 'dctypes:Image',
-                'format' => 'image/jpeg',
-                'service' => {
-                  '@context' => 'http://iiif.io/api/image/2/context.json',
-                  '@id' => image_uri(image.id),
-                  'profile' => 'http://iiif.io/api/image/2/profiles/level2.json'
-                },
-                'height' => image.height || DEFAULT_CANVAS_HEIGHT,
-                'width' => image.width || DEFAULT_CANVAS_WIDTH
-              },
-              'on' => canvas_uri(page.id)
-            }
-          ],
-          'thumbnail' => thumbnail(image),
-          'otherContent' => other_content(page)
-        }
+    def canvases
+      pages.map { |page| canvas(page) }
+    end
+
+    def image_dimensions(image)
+      # use the dimensions found in the index, if present
+      return { w: image.width, h: image.height } if image.height && image.width
+
+      # otherwise, attempt retrieve from the image server
+      # only fall back to the defaults if we cannot contact the image server
+      begin
+        response = HttpUtils::HTTP_CONN.get "#{image_uri(image.id)}/info.json"
+        return { w: DEFAULT_CANVAS_WIDTH, h: DEFAULT_CANVAS_HEIGHT } unless response.success?
+
+        info = response.body
+        { w: info['width'], h: info['height'] }
+      rescue Faraday::ConnectionFailed
+        { w: DEFAULT_CANVAS_WIDTH, h: DEFAULT_CANVAS_HEIGHT }
       end
+    end
+
+    def image_service(iiif_image_uri, iiif_version = 2, level = 2)
+      {
+        '@context' => "http://iiif.io/api/image/#{iiif_version}/context.json",
+        '@id' => iiif_image_uri,
+        'profile' => "http://iiif.io/api/image/#{iiif_version}/profiles/level#{level}.json"
+      }
+    end
+
+    def image_annotation(page)
+      return unless page.image
+
+      image = page.image
+      {
+        '@id' => annotation_uri(image.id),
+        '@type' => 'oa:Annotation',
+        'motivation' => 'sc:painting',
+        'resource' => image_resource(page.image),
+        'on' => canvas_uri(page.id)
+      }
+    end
+
+    def image_resource(image)
+      iiif_image_uri = image_uri(image.id)
+      image_size = image_dimensions(image)
+      {
+        '@id' => iiif_image_uri,
+        '@type' => 'dctypes:Image',
+        'format' => 'image/jpeg',
+        'service' => image_service(iiif_image_uri),
+        'height' => image_size[:h],
+        'width' => image_size[:w]
+      }
     end
 
     def other_content(page) # rubocop:disable Metrics/MethodLength
@@ -125,7 +159,7 @@ module IIIF
       end
     end
 
-    def manifest # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+    def manifest # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
       {
         '@context' => 'http://iiif.io/api/presentation/2/context.json',
         '@id' => manifest_uri,
@@ -134,15 +168,14 @@ module IIIF
         'metadata' => metadata,
         'sequences' => sequences(pages),
         'thumbnail' => thumbnail(pages&.first&.image),
-        'logo' => logo
-      }.tap do |manifest|
-        manifest['navDate'] = nav_date if nav_date
-        manifest['license'] = license if license
-        manifest['attribution'] = attribution if attribution
-        manifest['description'] = description if description
-        manifest['viewing_direction'] = viewing_direction if viewing_direction
-        manifest['viewing_hint'] = viewing_hint if viewing_hint
-      end
+        'logo' => logo,
+        'navDate' => nav_date,
+        'license' => license,
+        'attribution' => attribution,
+        'description' => description,
+        'viewing_direction' => viewing_direction,
+        'viewing_hint' => viewing_hint
+      }.filter { |_k, v| v }
     end
 
     def logo
@@ -167,21 +200,14 @@ module IIIF
       }
     end
 
-    def thumbnail(image) # rubocop:disable Metrics/MethodLength
+    def thumbnail(image, width = 100)
       return {} if image.nil?
 
-      width = 80
-      height = 100
       {
-        '@id' => image_uri(image.id, size: "#{width},#{height}"),
-        'service' => {
-          '@context' => 'http://iiif.io/api/image/2/context.json',
-          '@id' => image_uri(image.id),
-          'profile' => 'http://iiif.io/api/image/2/level1.json'
-        },
+        '@id' => image_uri(image.id, size: "#{width},"),
+        'service' => image_service(image_uri(image.id)),
         'format' => 'image/jpeg',
-        'width' => width,
-        'height' => height
+        'width' => width
       }
     end
 
