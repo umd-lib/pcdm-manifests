@@ -320,8 +320,8 @@ module IIIF
                     # NOTE: need the [0] subscript since `scan()` with capture groups returns an iterator of arrays
                     # rather than single string values
                     # ALSO NOTE: if there are multiword matches, each word gets highlighted individually; if we wanted
-                    # to change this, we would need to collapse the values and coordinates in the scan for `COORD_PATTERN`
-                    # into a single annotation for each hit
+                    # to change this, we would need to collapse the values and coordinates in the scan for the
+                    # `COORD_PATTERN` into a single annotation for each hit
                     hit[0].scan COORD_PATTERN do |value, tag_string|
                       tags = Rack::Utils.parse_nested_query(tag_string)
                       if tags['n'].to_i == page_index
