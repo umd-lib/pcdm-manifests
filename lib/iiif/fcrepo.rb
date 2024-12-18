@@ -248,6 +248,8 @@ module IIIF
 
         docs = results['response']['docs']
         body = docs.select { |doc| doc['id'] == @uri }.first
+        raise Errors::NotFoundError if body.nil?
+
         page_sequence = body['page_uri__sequence']
         annotations = get_ocr_annotations(
           page_uri: page_uri,
