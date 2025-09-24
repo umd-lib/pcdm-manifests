@@ -8,7 +8,7 @@ module IIIF
   module Fcrepo
     UUID_REGEX = /^\h{8}-\h{4}-\h{4}-\h{4}-\h{12}$/
     OCR_FIELDS = %w[extracted_text__dps_txt extracted_text__txt].freeze
-    HIGHLIGHT_PATTERN = %r{<em>([^<]*)</em>}
+    HIGHLIGHT_PATTERN = %r{<b class="hl">([^<]*)</b>}
     COORD_PATTERN = /(\S+)\|(\S+)/
 
     # location of a repository resource
@@ -151,7 +151,7 @@ module IIIF
       end
 
       def get_preferred_image(image_docs)
-        images_by_type = image_docs.index_by { |doc| doc[:file__mime_type__txt] }
+        images_by_type = image_docs.index_by { |doc| doc[:file__mime_type__str] }
         PREFERRED_FORMATS.each do |mime_type|
           return images_by_type[mime_type] if images_by_type.key? mime_type
         end
@@ -206,7 +206,7 @@ module IIIF
       end
 
       def pages
-        page_docs = doc[:page_uri__sequence].map do |uri|
+        page_docs = doc[:page_uri_sequence__uris].map do |uri|
           model_field('has_member').select { |member| member[:id] == uri }.first
         end
         page_docs.map { |page_doc| get_page(doc, page_doc) }
@@ -250,7 +250,7 @@ module IIIF
         body = docs.select { |doc| doc['id'] == @uri }.first
         raise Errors::NotFoundError if body.nil?
 
-        page_sequence = body['page_uri__sequence']
+        page_sequence = body['page_uri_sequence__uris']
         annotations = get_ocr_annotations(
           page_uri: page_uri,
           page_index: page_sequence.index(page_uri),
@@ -301,14 +301,16 @@ module IIIF
         def highlight_search_params # rubocop:disable Metrics/MethodLength
           {
             fq: ["id:#{@uri.gsub(':', '\:')}"],
-            q: OCR_FIELDS.map { |field| "#{field}:#{@query}" }.join(' OR '),
-            wt: 'json',
-            fl: '*',
-            hl: 'true',
-            'hl.fl': OCR_FIELDS.join(','),
-            'hl.simple.pre': '<em>',
-            'hl.simple.post': '</em>',
-            'hl.method': 'unified'
+            defType: 'edismax',
+            q: @query,
+            hl: true,
+            'q.alt': '*:*',
+            'qf': 'extracted_text__dps_txt',
+            'hl.fl': 'extracted_text__dps_txt',
+            'hl.snippets': 100,
+            'hl.maxAnalyzedChars': 1_000_000,
+            'hl.tag.pre': '<b class="hl">',
+            'hl.tag.post': '</b>'
           }
         end
 
@@ -359,7 +361,7 @@ module IIIF
         end
 
         def model_prefix
-          doc[:content_model_prefix__str]
+          'object__'
         end
 
         def model_field(field)
