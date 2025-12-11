@@ -1,5 +1,19 @@
 # pcdm-manifests
 
+---
+
+## ARCHIVED REPOSITORY
+
+This repository has been archived, and is no longer being developed or
+maintained.
+
+It has been replaced by Papaya, a Python/Flask implementation of the
+IIIF Presentation API:
+
+<https://github.com/umd-lib/papaya/>
+
+---
+
 Implementation of the [IIIF Presentation
 API](http://iiif.io/api/presentation/2.1/) that generates IIIF Manifests from
 [PCDM](https://pcdm.org/) objects in a Fedora repository.
